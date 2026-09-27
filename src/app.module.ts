@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
 import { SummaryModule } from './summary/summary.module.js';
 import { HistoryModule } from './history/history.module.js';
+import { EmailInboundModule } from './email-inbound/email-inbound.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { HistoryModule } from './history/history.module.js';
     ExpensesModule,
     SummaryModule,
     HistoryModule,
+    EmailInboundModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,0 +1,36 @@
+# compiled
+/dist
+/node_modules
+/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# prisma generated (if custom output)
+/generated
+
+# IDE / OS
+.idea
+.vscode
+*.swp
+.DS_Store
+coverage
+*.tsbuildinfo
+# Added by code-review-graph
+.code-review-graph/
+.cursor
+.cursorrules
+AGENTS.md
+package-lock.json
+package.json.tmp
+/docs

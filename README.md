@@ -77,6 +77,7 @@ Swagger: `http://localhost:4000/api-docs`
 | GET              | /summary                  | X-User-Id | Cycle summary (`?year=&month=`)         |
 | GET              | /history/yearly           | X-User-Id | Yearly monthly breakdown (`?year=`)     |
 | GET              | /health                   | —         | Health check (not rate-limited)         |
+| POST             | /email-inbound/sync       | X-User-Id | Sync manual de gastos desde correos reenviados |
 
 Categories can be listed, created, fetched, updated, and accessed via get-or-create. After creation, edit/rename is the only category mutation; category deletion is not offered in v1.
 
@@ -161,6 +162,16 @@ Collection and environment for importing into [Postman](https://www.postman.com/
 
 Collection variables: `baseUrl` (`http://localhost:4000/api/v1`), `userId`, `categoryId`, `expenseId`.  
 Auth is collection-level API key header `X-User-Id: {{userId}}`; **Create User** and **Health** use no auth. **List Users** (`GET /users`) is for Postman/manual testing only (requires `X-User-Id`; omits `emailAppToken`).
+
+
+## Gastos por correo (IMAP inbound)
+
+Inbox compartido: `nexpensesdev@gmail.com`. Cada usuario reenvía avisos bancarios a `nexpensesdev+{userId}@gmail.com` (o incluye `nexpenses:{userId}` / `[nexpenses:{userId}]` en el asunto).
+
+- **Endpoint:** `POST /api/v1/email-inbound/sync` con header `X-User-Id` (solo procesa correos de ese usuario).
+- **Respuesta `data`:** `{ created, skipped, deleted, errors }`.
+- **Env:** `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_APP_PASSWORD` (App Password de Gmail; no commitear), `EMAIL_INBOUND_DELETE_AFTER_MS` (default 3600000 = 1h).
+- Tras crear un gasto se guarda el `Message-ID` (idempotencia). Los mails procesados se borran del buzón ~1h después (cleanup en cada sync). Sin monto → no crea ni borra.
 
 ## Scripts
 
