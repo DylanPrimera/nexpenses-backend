@@ -12,12 +12,12 @@ export type ParsedBankNotice = {
 const AMOUNT_RE =
   /(?:COP\s*\$?\s*|\$\s*)(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:,\d{2})?)/gi;
 const MONEY_TOKEN =
-  String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:,\d{2})?`;
+  String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:[.,]\d{2})?`;
 const LABELED_AMOUNT_RE = new RegExp(
-  String.raw`(?:monto|valor\s+transacci[oó]n)\s*:\s*\$?\s*(${MONEY_TOKEN})`,
+  String.raw`(?:monto|valor\s+transacci[oó]n)[\s*:]+\$?\s*(${MONEY_TOKEN})`,
   'i',
 );
-const LABELED_DESTINATION_RE = /cuenta\s+destino\s*:\s*([^\n•]+)/i;
+const LABELED_DESTINATION_RE = /cuenta\s+destino[\s*:]+([^\n•]+)/i;
 const BUY_RE = /compr|pagast|pag[oó]\b|valor/;
 const SKIP_RE = /saldo|disponible|qued|cupo/;
 
