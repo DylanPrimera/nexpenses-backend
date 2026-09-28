@@ -49,4 +49,12 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Link, move, or clear the credit this expense pays',
+  })
+  @IsOptional()
+  @IsUUID()
+  creditId?: string | null;
 }

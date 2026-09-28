@@ -1,0 +1,73 @@
+EJEMPLO ANONIMIZADO
+USUARIO EJEMPLO
+BARRIO EJEMPLO CALLE 1 1-1
+CIUDAD EJEMPLO
+Referencia de Pago
+1000000001-7
+Instituto Colombiano de Credito Educativo
+y Estudios Tecnicos en el Exterior
+ICETEX acompaña los proyectos de vida de los Colombianos
+Saldo Vencido Cargos del Mes Pago Mínimo Pague Hasta Días Mora Etapa del Crédito
+$0,00 $514.080,00 $514.080,00 05-10-26 0 AMORTIZACION
+Cuotas Pactadas Cuotas Pagadas Cuotas Vencidas Cuotas Pendientes Tasa mes
+vencido 1.37%
+17 0 0 17
+Saldos a la Fecha de Corte Pago Mes Anterior Resumen Valor Pago Mínimo
+Capital $7.626.442,98 $432.891,27 $324.674,66
+Intereses
+Corrientes $132.488,37 $33.446,23 $181.187,45
+Interes Mora $0,00 $0,00 $0,00
+Otros $158.392,43 $8.209,84 $8.217,83
+AFPC
+Interés no
+Capitalizable $0,00 $0,00 $0,00
+Saldo Vencido $0,00
+Total $7.917.323,78 $474.547,34 $514.080,00
+Si quieres realizar tu
+pagos por PSE, ingresa a
+través de este Código Qr
+Descarga aquí los
+códigos de convenio de
+las entidades
+recaudadoras
+Instructivo para pagos
+desde el EXTERIOR.
+Escanea este código si
+quieres realizar abonos a
+capital
+TASAS
+Tasa Interés Corriente
+(Nominal Anual Mes
+Vencido) N.A.M.V
+16.42%
+Tasa Interés Mora (Nominal
+Anual Mes Vencido)
+N.A.M.V
+16.42%
+ICETEX a tu medida
+Cuota cultura de pago
+Fecha corte 21-09-26
+Conceptos que debes tener en cuenta:
+1) AFPC (Aporte al Fondo Pasivo Contingente), que en la actualidad equivale al 2% del valor desembolsado.
+2) OTROS: corresponde a intereses pendientes redistribuidos en el plan de pagos si tu crédito tuvo prórroga, refinanciación, interrupción temporal de pagos y/o algún acuerdo de pago.
+3) INTERÉS NO CAPITALIZABLE: se refiere a la parte de los intereses generados durante el periodo de estudio que, debido a las condiciones de la Línea de Crédito o la aplicación
+de algún programa de ALIVIOS y ESTÍMULOS, se distribuye de manera proporcional en el número de cuotas restantes para la amortización final del crédito.
+Forma de pago Valor
+Efectivo
+Cheque de gerencia
+Nro. Cod. Banco:
+Fecha de pago VALOR PAGADO
+Día Mes Año
+Nombre quien realiza el pago Documento de
+Identidad Teléfono
+(415)7700000000001(8020)10000000017
+Referencia de Pago
+1000000001-7
+USUARIO EJEMPLO
+BARRIO EJEMPLO CALLE 1 1-1
+CIUDAD EJEMPLO
+
+USUARIO EJEMPLO
+BARRIO EJEMPLO CALLE 1
+1-1
+CIUDAD EJEMPLO

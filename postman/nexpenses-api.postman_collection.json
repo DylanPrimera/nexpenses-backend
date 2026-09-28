@@ -41,6 +41,10 @@
     {
       "key": "expenseId",
       "value": ""
+    },
+    {
+      "key": "creditId",
+      "value": ""
     }
   ],
   "item": [
@@ -630,6 +634,112 @@
               ]
             },
             "description": "⚠️ PELIGRO: borra TODOS los gastos del usuario. Uso manual/opcional; no se llama automáticamente al cambiar de mes. Respuesta HTTP 200."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Credits",
+      "description": "Créditos TC y consumo. Máximo 10 por usuario. El PDF de from-statement se borra tras parsear; no se guarda URL.",
+      "item": [
+        {
+          "name": "List Credits",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/credits",
+            "description": "Lista créditos del usuario. Cada item incluye status: atrasado | proximo | al_dia."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Credit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.id) pm.collectionVariables.set(\"creditId\", json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"CONSUMO\",\n  \"provider\": \"GENERIC\",\n  \"bankName\": \"Banco ejemplo\",\n  \"displayName\": \"Libre inversión\",\n  \"nextPaymentDate\": \"2026-10-20\",\n  \"remainingBalance\": 1500000,\n  \"installmentAmount\": 180000,\n  \"rateEa\": 22.5\n}"
+            },
+            "url": "{{baseUrl}}/credits",
+            "description": "Crea un crédito manual. Guarda creditId."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Credit From Statement",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "kind",
+                  "value": "TC",
+                  "type": "text"
+                },
+                {
+                  "key": "displayName",
+                  "value": "Nu",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/credits/from-statement",
+            "description": "Multipart: kind, displayName/bankName opcionales, rateEa/rateMv opcionales (pisan las del PDF), file PDF. El archivo se elimina al parsear."
+          },
+          "response": []
+        },
+        {
+          "name": "Patch Credit Rates",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rateEa\": 18.5\n}"
+            },
+            "url": "{{baseUrl}}/credits/{{creditId}}",
+            "description": "Recalcula interés del periodo y, en consumo con monto/plazo/cuota, el saldo y la cuota proyectados."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Credit",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/credits/{{creditId}}",
+            "description": "Elimina el crédito. Los gastos ligados quedan con creditId null."
           },
           "response": []
         }

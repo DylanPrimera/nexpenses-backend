@@ -74,12 +74,25 @@ Swagger: `http://localhost:4000/api-docs`
 | GET/POST         | /expenses                 | X-User-Id | List (filters: year, month, …) / create |
 | GET/PATCH/DELETE | /expenses/:id             | X-User-Id | CRUD                                    |
 | DELETE           | /expenses                 | X-User-Id | **Optional/manual** wipe all (danger)   |
+| GET/POST         | /credits                  | X-User-Id | List (status badge) / create manually   |
+| POST             | /credits/from-statement   | X-User-Id | Multipart PDF → parse → delete file     |
+| GET/PATCH/DELETE | /credits/:id              | X-User-Id | CRUD. PATCH rates recalculates projection |
 | GET              | /summary                  | X-User-Id | Cycle summary (`?year=&month=`)         |
 | GET              | /history/yearly           | X-User-Id | Yearly monthly breakdown (`?year=`)     |
 | GET              | /health                   | —         | Health check (not rate-limited)         |
 | POST             | /email-inbound/sync       | X-User-Id | Sync manual de gastos desde correos reenviados |
 
 Categories can be listed, created, fetched, updated, and accessed via get-or-create. After creation, edit/rename is the only category mutation; category deletion is not offered in v1.
+
+## Créditos (deudas)
+
+Each user can keep up to **10** credits (tarjeta de crédito `TC` or consumo `CONSUMO`). There is no statement history: one current row per credit.
+
+`POST /credits/from-statement` is `multipart/form-data` with `file` (PDF), `kind` (`TC` | `CONSUMO`), optional `displayName` / `bankName`, and optional `rateEa` / `rateMv`. The PDF is written to a temp directory, parsed, and **deleted in the same request**. The API never stores a PDF URL. Rates sent on the form replace rates read from the PDF. Provider adapters: Nu (TC), Lulo (consumo), ICETEX, Banco de Bogotá compra de cartera, plus a generic label fallback.
+
+`GET /credits` adds `status`: `atrasado` (days past due or due date already passed), `proximo` (due within 7 days), or `al_dia`.
+
+Creating an expense with `creditId` decreases `remainingBalance` (floor 0) and can set `advanceInstallment: true` to bump `installmentCurrent` on consumo credits. Deleting that expense restores the applied amount when the credit still exists. `PATCH /credits/:id` with `rateEa` and/or `rateMv` refreshes period interest; consumer loans that have original amount, term, and installment number also recompute the outstanding balance and projected installment.
 
 ## Standard response envelope
 

@@ -1,0 +1,84 @@
+EJEMPLO ANONIMIZADO
+NÚMERO DE CRÉDITO 10000000002
+Extracto Compra de CarteraFECHA LÍMITE DE PAGO VALOR CUOTA FECHA DE CORTE
+CUOTA NÚMERO DÍAS DE MORA SALDO A LA FECHA DE CORTE
+01/10/2026 06/09/2026
+0
+$313,676.00
+INFORMACIÓN DEL CRÉDITO COMPRA DE CARTERA
+VALOR APROBADO PLAZO MESES NÚMERO DE CUENTA A DEBITAR
+$6,000,000.00 24---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+COMPROBANTE DE PAGO
+ESPACIO PARA EL TIMBRE DE LA TRANSACCIÓN
+CIUDAD AÑO MES DIA
+NOMBRE DEL TITULAR USUARIO EJEMPLO
+NÚMERO DE PRODUCTO 10000000002BANCO DONDE TIENE LA CUENTA
+AV VILLAS BANCO DE BOGOTA BANCO DE OCCIDENTE BANCO POPULAR
+TIPO DE PAGO (Marque solo uno)
+Normal Abono Extraordinario Reducir Plazo Siguiente Cuota
+USUARIO EJEMPLO
+CRA 1 1-1
+BARRIO EJEMPLO
+CIUDAD EJEMPLO
+Entrega: EM Oficina: 2168
+127063Si va a realizar el pago total de la obligación, por favor
+comuníquese primero con la Servilínea de su ciudad.
+Nro. 2026090509LI0000000000
+Página 1 de 1
+DETALLE DE PAGO ANTERIOR (1)
+DESCRIPCIÓN VALOR
+Saldo a Capital Anterior $4,716,216.27
+Pago Anterior $313,676.00
+Abono a Capital $232,189.28
+Intereses Corrientes $76,664.72
+Intereses de Mora $0.00
+Otros Cargos $4,822.00
+Valor trasladado a la aseguradora,
+0% intereses (3) $0.00
+Saldo a Capital $4,484,026.99
+INTERESES TASA CON SEGURO VOLUNTARIO* INTERESES TASA SIN SEGURO VOLUNTARIO INTERESES DE MORA
+NOMINAL MES VENCIDO EFECTIVO ANUAL EFECTIVO ANUAL EFECTIVO ANUAL
+20.90 23.02 23.02 24.98Cualquier inconsistencia u observación deberá ser informada al Banco a más tardar dentro de los 15 días
+siguientes al recibo del extracto, o a la Revisoria Fiscal KPMG Ltda., apartado aéreo 36700 de Bogotá.No.
+FORMA DE PAGO (Marque solo uno) Efectivo Cargo a Cuenta
+Para pagos con cheque:
+Cheque local Código de banco
+No. Cuenta del Cheque VALOR A PAGAR $ DESCRIPCIÓN OTROS CARGOS
+SEG VIDA VARIOS 4,822.00
+DETALLE PAGO A REALIZAR (2)
+DESCRIPCIÓN VALOR
+Valor Cuota $313,676.00
+Otros Cargos $4,822.00
+Intereses de Mora $0.00
+Intereses Corrientes (4) $91,112.93
+Valor en Mora $0.00
+Abono a Capital $217,741.07
+Valor trasladado a la aseguradora,
+0% intereses (3) $0.00
+jg  f-*dM$`ek
+09062026 100000000021VIGILADO SUPERINTENDENCIA
+FINANCIERA DE COLOMBIA
+8 $4,517,484.48"En el evento que el cliente cuente con algún medio idóneo
+disponible que le permita conocer directamente o
+autogestionar la información de su crédito, se conviene
+que el Banco de Bogotá, queda relevado del envío del
+extracto, cuenta de cobro o plan de pagos por medios
+físicos"
+• (1) Liquidación del último pago efectuado con posterioridad a la fecha de corte del extracto inmediatamente
+anterior.
+• (2) Proyectado a la fecha límite de pago. Si se cancela en otra fecha o se paga una suma diferente, el valor
+cambiará en el siguiente extracto.
+• (3) Este valor corresponde al abono de la porción del crédito utilizado para el pago del seguro.
+• (4) Liquidados desde la fecha del último pago a la fecha límite de pago de este extracto.
+*.Queremos siempre brindarte el mejor servicio, te recordamos que contamos con la Defensoría del Consumidor
+Financiero la cual podrás contactar de lunes a viernes de 8:00 a.m a 5:30 p.m. al teléfono fijo: 3320101, celular (+57)
+318 373 00 77, correo electrónico defensoriaconsumidorfinanciero@bancodebogota.com.co, o en la dirección Calle
+36 No. 7 – 47 piso 4 en la ciudad de Bogotá D.C. Podrás ampliar la información relacionada con esta institución en
+www.bancodebogota.com.
+• No olvide revisar su estado de cuenta oportunamente; cualquier inconsistencia deberá informarla al Banco o a
+la revisoría fiscal KPMG Ltda., apartado aéreo 36700 de Bogotá.* Corresponde a la tasa de interés con el descuento acordado por la aceptación del seguro voluntario
+(cuota protegida). En caso de no haber tomado dicho seguro esta corresponderá a la tasa sin seguro
+voluntario. Tasa sujeta a términos y condiciones. Aplica para libre destino (Línea 5).
+127063 1-2
+
+127063 2-2
