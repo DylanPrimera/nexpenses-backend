@@ -21,7 +21,7 @@ export class EmailInboundController {
       'Conecta al buzón IMAP compartido, procesa solo mensajes dirigidos a este userId ' +
       '(plus-address nexpensesdev+{userId}@gmail.com o subject nexpenses:UUID), ' +
       'crea gastos cuando hay monto, y limpia mails ya procesados tras ~1h. ' +
-      'Respuesta data: { created, skipped, deleted, errors }.',
+      'Respuesta data: { created, skipped, deleted, errors, skippedByReason }.',
   })
   sync(@CurrentUserId() userId: string) {
     return this.emailInboundService.syncForUser(userId);

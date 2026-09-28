@@ -5,7 +5,6 @@ export type ParsedBankNotice = {
   merchant: string | null;
   paymentType: 'debit_card' | 'credit_card' | null;
   snippet: string;
-  /** Auth / reference number when the bank prints one */
   reference: string | null;
 };
 
@@ -23,6 +22,14 @@ const SKIP_RE = /saldo|disponible|qued|cupo/;
 
 function cleanLabel(value: string): string {
   return value.replace(/\*/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function normalizeBankNoticeText(raw: string): string {
+  return raw
+    .replace(/\*/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 function toCop(token: string): number {
@@ -163,22 +170,23 @@ function importantInfo(raw: string, merchant: string | null): string {
 }
 
 export function parseBankNotice(raw: string): ParsedBankNotice {
-  const found = labeledAmount(raw) ?? bestAmount(raw);
-  if (transferEmail(raw)) {
-    const destination = destinationOf(raw);
+  const text = normalizeBankNoticeText(raw);
+  const found = labeledAmount(text) ?? bestAmount(text);
+  if (transferEmail(text)) {
+    const destination = destinationOf(text);
     return {
       amount: found?.amount ?? null,
       merchant: destination?.id ?? null,
       paymentType: 'debit_card',
-      snippet: transferDescription(raw),
-      reference: transactionReference(raw),
+      snippet: transferDescription(text),
+      reference: transactionReference(text),
     };
   }
 
   const merchant =
-    labeledPlace(raw) ??
-    (found ? (merchantFrom(raw, found.index) ?? merchantFrom(raw, 0)) : null);
-  const snippet = importantInfo(raw, merchant);
+    labeledPlace(text) ??
+    (found ? (merchantFrom(text, found.index) ?? merchantFrom(text, 0)) : null);
+  const snippet = importantInfo(text, merchant);
   if (!found) {
     return { amount: null, merchant: null, paymentType: null, snippet, reference: null };
   }
@@ -186,8 +194,8 @@ export function parseBankNotice(raw: string): ParsedBankNotice {
   return {
     amount: found.amount,
     merchant,
-    paymentType: paymentType(raw),
+    paymentType: paymentType(text),
     snippet,
-    reference: transactionReference(raw),
+    reference: transactionReference(text),
   };
 }

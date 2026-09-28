@@ -14,12 +14,26 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { extractInboundUserId } from './extract-inbound-user-id.js';
 import { parseBankNotice } from './parse-bank-notice.js';
 
+export type EmailInboundSkipReason =
+  | 'empty_source'
+  | 'no_message_id'
+  | 'already_processed'
+  | 'user_mismatch'
+  | 'empty_body'
+  | 'no_amount'
+  | 'duplicate_fingerprint';
+
 export type EmailInboundSyncResult = {
   created: number;
   skipped: number;
   deleted: number;
   errors: string[];
+  skippedByReason: Partial<Record<EmailInboundSkipReason, number>>;
 };
+
+type ProcessOutcome =
+  | { status: 'created' }
+  | { status: 'skipped'; reason: EmailInboundSkipReason };
 
 type ImapConfig = {
   host: string;
@@ -158,6 +172,7 @@ export class EmailInboundService {
       skipped: 0,
       deleted: 0,
       errors: [],
+      skippedByReason: {},
     };
 
     const cfg = this.resolveImapConfig();
@@ -191,8 +206,16 @@ export class EmailInboundService {
         )) {
           try {
             const outcome = await this.processMessage(userId, msg.source, msg.uid);
-            if (outcome === 'created') result.created += 1;
-            else result.skipped += 1;
+            if (outcome.status === 'created') {
+              result.created += 1;
+            } else {
+              result.skipped += 1;
+              result.skippedByReason[outcome.reason] =
+                (result.skippedByReason[outcome.reason] ?? 0) + 1;
+              this.logger.warn(
+                `Omitido ${outcome.reason} uid=${msg.uid} mid=${msg.envelope?.messageId ?? 'n/a'}`,
+              );
+            }
           } catch (error) {
             const detail =
               error instanceof Error ? error.message : String(error);
@@ -219,17 +242,17 @@ export class EmailInboundService {
     userId: string,
     source: Buffer | undefined,
     _uid: number,
-  ): Promise<'created' | 'skipped'> {
-    if (!source) return 'skipped';
+  ): Promise<ProcessOutcome> {
+    if (!source) return { status: 'skipped', reason: 'empty_source' };
 
     const parsed = await simpleParser(source);
     const messageId = normalizeMessageId(parsed.messageId);
-    if (!messageId) return 'skipped';
+    if (!messageId) return { status: 'skipped', reason: 'no_message_id' };
 
     const already = await this.prisma.processedInboundEmail.findUnique({
       where: { messageId },
     });
-    if (already) return 'skipped';
+    if (already) return { status: 'skipped', reason: 'already_processed' };
 
     const inboundUserId = extractInboundUserId({
       to: addressText(parsed.to),
@@ -240,16 +263,16 @@ export class EmailInboundService {
     });
 
     if (!inboundUserId || inboundUserId !== userId.toLowerCase()) {
-      return 'skipped';
+      return { status: 'skipped', reason: 'user_mismatch' };
     }
 
     const raw = bodyText(parsed);
-    if (!raw) return 'skipped';
+    if (!raw) return { status: 'skipped', reason: 'empty_body' };
 
     const notice = parseBankNotice(raw);
     if (notice.amount == null || notice.amount < 1) {
       // Sin monto: no crear ni borrar; se reintentará en sync futuros.
-      return 'skipped';
+      return { status: 'skipped', reason: 'no_amount' };
     }
 
     const fingerprint = buildTransactionFingerprint({
@@ -274,7 +297,7 @@ export class EmailInboundService {
           expenseId: duplicate.expenseId,
         },
       });
-      return 'skipped';
+      return { status: 'skipped', reason: 'duplicate_fingerprint' };
     }
 
     const categorySeed =
@@ -317,7 +340,7 @@ export class EmailInboundService {
       },
     });
 
-    return 'created';
+    return { status: 'created' };
   }
 
   /** Borra del buzón mails ya procesados hace más de deleteAfterMs. */
