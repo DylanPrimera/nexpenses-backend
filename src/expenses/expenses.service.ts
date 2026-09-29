@@ -154,6 +154,7 @@ export class ExpensesService {
         const synced = await this.syncCreditLink(tx, userId, existing, {
           creditId: nextCreditId,
           amount: nextAmount,
+          advanceInstallment: dto.advanceInstallment === true,
         });
         creditBalanceApplied = moneyDec(synced.applied)!;
         creditInstallmentAdvanced = synced.advanced;
@@ -284,7 +285,11 @@ export class ExpensesService {
     tx: Prisma.TransactionClient,
     userId: string,
     existing: ExpenseRow,
-    next: { creditId: string | null; amount: number },
+    next: {
+      creditId: string | null;
+      amount: number;
+      advanceInstallment: boolean;
+    },
   ): Promise<{ applied: number; advanced: boolean }> {
     const sameCredit = existing.creditId === next.creditId;
     if (existing.creditId) {
@@ -305,7 +310,7 @@ export class ExpensesService {
       };
     }
     return this.chargeCredit(tx, userId, next.creditId, next.amount, {
-      advanceInstallment: false,
+      advanceInstallment: next.advanceInstallment,
     });
   }
 }

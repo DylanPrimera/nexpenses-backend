@@ -1,7 +1,24 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
 import { extractPdfText } from './pdf/extract-pdf-text.js';
+
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.message || error.name;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    const message = obj.message ?? obj.error ?? obj.msg;
+    if (typeof message === 'string' && message.trim()) return message;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return Object.prototype.toString.call(error);
+    }
+  }
+  return String(error);
+}
+
 
 export const STATEMENT_CLOUDINARY_FOLDER = 'nexpenses/statements-tmp';
 export const MAX_STATEMENT_BYTES = 8 * 1024 * 1024;
@@ -15,33 +32,20 @@ export type UploadedPdf = {
 
 @Injectable()
 export class StatementFileService {
+  private readonly logger = new Logger(StatementFileService.name);
+
   constructor(private readonly config: ConfigService) {
     const cloudinaryUrl = this.config.get<string>('CLOUDINARY_URL');
-    const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
-    const apiKey = this.config.get<string>('CLOUDINARY_API_KEY');
-    const apiSecret = this.config.get<string>('CLOUDINARY_API_SECRET');
 
     if (cloudinaryUrl) {
       cloudinary.config(cloudinaryUrl);
-    } else if (cloudName && apiKey && apiSecret) {
-      cloudinary.config({
-        cloud_name: cloudName,
-        api_key: apiKey,
-        api_secret: apiSecret,
-        secure: true,
-      });
-    } else {
+    }  else {
       throw new Error(
-        'Configura CLOUDINARY_URL o CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET',
+        'Configura CLOUDINARY_URL',
       );
     }
   }
 
-  /**
-   * Stage the PDF on Cloudinary (raw, private), extract text from the upload
-   * buffer, then destroy the remote asset immediately. Never persist the URL.
-   * Cloudinary is used so concurrent statement uploads do not fill Nest disk.
-   */
   async consume(file: UploadedPdf | undefined): Promise<string> {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Adjunta el PDF del extracto');
@@ -63,7 +67,14 @@ export class StatementFileService {
       return await extractPdfText(file.buffer);
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      throw new BadRequestException('No se pudo leer el PDF del extracto');
+      const detail = formatUnknownError(error);
+      this.logger.error(
+        `Failed to read statement PDF: ${detail}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException(
+        `No se pudo leer el PDF del extracto: ${detail}`,
+      );
     } finally {
       if (publicId) {
         await this.destroyRaw(publicId);
