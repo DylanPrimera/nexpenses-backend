@@ -1,8 +1,15 @@
 import { matchDate, matchMoney, modePercent } from '../matchers.js';
-import { blankStatement, type ParsedStatement } from '../types.js';
+import {
+  blankStatement,
+  type CreditKindCode,
+  type ParsedStatement,
+} from '../types.js';
 
-export function parseNuTc(text: string): ParsedStatement {
-  const parsed = blankStatement('NU', 'TC', 'Nu');
+export function parseNu(
+  text: string,
+  kind: CreditKindCode = 'CONSUMO',
+): ParsedStatement {
+  const parsed = blankStatement('NU', kind, 'Nu');
   const used = matchMoney(text, /Usado\s*(\$[\d.,]+)/i);
   const debtTotal = matchMoney(text, /(\$[\d.,]+)\s*DEUDA TOTAL/i);
   const advances = matchMoney(
@@ -21,11 +28,11 @@ export function parseNuTc(text: string): ParsedStatement {
     (value): value is number => value != null,
   );
 
-  const cards = [...text.matchAll(/•(?:\s*•){3}\s*(\d{4})/g)].map(
+  const productRefs = [...text.matchAll(/•(?:\s*•){3}\s*(\d{4})/g)].map(
     (match) => match[1] ?? '',
   );
 
-  parsed.productRef = cards.filter(Boolean).join('/') || null;
+  parsed.productRef = productRefs.filter(Boolean).join('/') || null;
   parsed.creditLimit = matchMoney(text, /cupo definido\s*(\$[\d.,]+)/i);
   parsed.usedAmount = used ?? debtTotal;
   parsed.availableCredit = matchMoney(text, /Disponible\s*(\$[\d.,]+)/i);

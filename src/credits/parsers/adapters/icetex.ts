@@ -1,8 +1,15 @@
 import { matchDate, matchMoney, matchRate } from '../matchers.js';
-import { blankStatement, type ParsedStatement } from '../types.js';
+import {
+  blankStatement,
+  type CreditKindCode,
+  type ParsedStatement,
+} from '../types.js';
 
-export function parseIcetex(text: string): ParsedStatement {
-  const parsed = blankStatement('ICETEX', 'CONSUMO', 'ICETEX');
+export function parseIcetex(
+  text: string,
+  kind: CreditKindCode = 'CONSUMO',
+): ParsedStatement {
+  const parsed = blankStatement('ICETEX', kind, 'ICETEX');
   const header = text.match(
     /\$[\d.,]+\s+(\$[\d.,]+)\s+(\$[\d.,]+)\s+(\d{2}-\d{2}-\d{2})\s+(\d+)\s+([A-ZÁÉÍÓÚÑ]+)/i,
   );

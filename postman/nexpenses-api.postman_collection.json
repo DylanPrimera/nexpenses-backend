@@ -694,7 +694,7 @@
               "formdata": [
                 {
                   "key": "kind",
-                  "value": "TC",
+                  "value": "CONSUMO",
                   "type": "text"
                 },
                 {

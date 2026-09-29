@@ -3,9 +3,6 @@ import { parseGeneric } from './adapters/generic.js';
 import { bankLabel } from './colombian-banks.js';
 import {
   detectProvider,
-  expectedKind,
-  kindLabel,
-  providerLabel,
   resolvePersistedProvider,
   resolveProviderParser,
 } from './detect-provider.js';
@@ -50,16 +47,9 @@ export function parseCreditStatement(
   }
 
   const detected = detectProvider(source);
-  const expected = expectedKind(detected, source);
-  if (expected && expected !== kind) {
-    throw new StatementParseError(
-      `El extracto corresponde a ${providerLabel(detected)} (${kindLabel(expected)}) y no coincide con el tipo seleccionado.`,
-    );
-  }
-
   const parseAdapter = resolveProviderParser(detected, source);
   const parsed = parseAdapter
-    ? parseAdapter(source)
+    ? parseAdapter(source, kind)
     : parseGeneric(source, kind);
 
   parsed.kind = kind;

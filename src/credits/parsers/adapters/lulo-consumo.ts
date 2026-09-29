@@ -1,8 +1,15 @@
 import { clip, matchDate, matchMoney, matchRate } from '../matchers.js';
-import { blankStatement, type ParsedStatement } from '../types.js';
+import {
+  blankStatement,
+  type CreditKindCode,
+  type ParsedStatement,
+} from '../types.js';
 
-export function parseLuloConsumo(text: string): ParsedStatement {
-  const parsed = blankStatement('LULO', 'CONSUMO', 'Lulo bank');
+export function parseLuloConsumo(
+  text: string,
+  kind: CreditKindCode = 'CONSUMO',
+): ParsedStatement {
+  const parsed = blankStatement('LULO', kind, 'Lulo bank');
   const cuota = text.match(/(\d{8,})\s+(\d{1,3})\s+de\s+(\d{1,3})/i);
 
   parsed.productRef = cuota?.[1] ?? null;

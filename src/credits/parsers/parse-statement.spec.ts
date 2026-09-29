@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { eaToMv, mvToEa } from '../domain/rates.js';
 import {
   detectProvider,
-  expectedKind,
   hasDedicatedAdapter,
 } from './detect-provider.js';
 import {
@@ -138,23 +137,23 @@ describe('detectProvider dictionary', () => {
     );
   });
 
-  it('only enforces known kind for dedicated adapter providers', () => {
-    expect(expectedKind('NU')).toBe('TC');
-    expect(expectedKind('LULO')).toBe('CONSUMO');
-    expect(expectedKind('ICETEX')).toBe('CONSUMO');
-    expect(expectedKind('BANCO_BOGOTA', samples.bancoBogota)).toBeNull();
-    expect(expectedKind('BANCO_BOGOTA', samples.bancoBogotaTc)).toBeNull();
-    expect(expectedKind('BANCOLOMBIA')).toBeNull();
-    expect(expectedKind('DAVIVIENDA')).toBeNull();
-    expect(expectedKind('GENERIC')).toBeNull();
+  it('does not pin registry banks to a fixed kind', () => {
+    expect(hasDedicatedAdapter('NU', samples.nu)).toBe(true);
+    expect(hasDedicatedAdapter('LULO', samples.lulo)).toBe(true);
+    expect(hasDedicatedAdapter('ICETEX', samples.icetex)).toBe(true);
+    // Kind is chosen by the user / caller — registry only wires parsers.
+    expect(parseCreditStatement(samples.nu, 'TC').kind).toBe('TC');
+    expect(parseCreditStatement(samples.nu, 'CONSUMO').kind).toBe('CONSUMO');
+    expect(parseCreditStatement(samples.lulo, 'TC').kind).toBe('TC');
+    expect(parseCreditStatement(samples.icetex, 'TC').kind).toBe('TC');
   });
 });
 
 describe('parseCreditStatement inline samples', () => {
-  it('parses an anonymized Nu credit-card statement', () => {
-    const parsed = parseCreditStatement(samples.nu, 'TC');
+  it('parses an anonymized Nu consumer-credit statement', () => {
+    const parsed = parseCreditStatement(samples.nu, 'CONSUMO');
     expect(parsed.provider).toBe('NU');
-    expect(parsed.kind).toBe('TC');
+    expect(parsed.kind).toBe('CONSUMO');
     expect(parsed.productRef).toBe('0000/0001');
     expect(parsed.creditLimit).toBe(3350000);
     expect(parsed.usedAmount).toBe(2485328.72);
@@ -281,13 +280,22 @@ describe('parseCreditStatement inline samples', () => {
     ).toThrow(StatementParseError);
   });
 
-  it('rejects a provider that does not match the selected kind', () => {
-    expect(() => parseCreditStatement(samples.nu, 'CONSUMO')).toThrow(
-      /no coincide con el tipo seleccionado/,
-    );
+  it('accepts Nu as either TC or CONSUMO from user selection', () => {
+    const asTc = parseCreditStatement(samples.nu, 'TC');
+    expect(asTc.provider).toBe('NU');
+    expect(asTc.kind).toBe('TC');
+    expect(asTc.remainingBalance).toBe(2485328.72);
+    expect(asTc.minPayment).toBe(586837.44);
+
+    const asConsumo = parseCreditStatement(samples.nu, 'CONSUMO');
+    expect(asConsumo.provider).toBe('NU');
+    expect(asConsumo.kind).toBe('CONSUMO');
   });
 
-  it('does not reject dictionary banks for either selected kind', () => {
+  it('does not reject registry or dictionary banks for either selected kind', () => {
+    expect(() => parseCreditStatement(samples.nu, 'TC')).not.toThrow();
+    expect(() => parseCreditStatement(samples.lulo, 'TC')).not.toThrow();
+    expect(() => parseCreditStatement(samples.icetex, 'TC')).not.toThrow();
     expect(() =>
       parseCreditStatement(samples.bancolombia, 'CONSUMO'),
     ).not.toThrow();
