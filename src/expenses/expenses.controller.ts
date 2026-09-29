@@ -55,10 +55,10 @@ export class ExpensesController {
   @HttpCode(200)
   @ResponseMessage('Todos los gastos fueron eliminados')
   @ApiOperation({
-    summary: 'Wipe all expenses for current user',
+    summary: 'Wipe all expenses for current user (legacy)',
     description:
-      'DANGER: optional/manual wipe of ALL expenses for this user. ' +
-      'Not used on month change by default — history is retained. Call only when the client explicitly wants a full reset.',
+      'DANGER: deletes ALL expenses for this user and restores linked credit balances. ' +
+      'Does NOT delete credits, categories, or the User. Prefer DELETE /users/me for a full account wipe.',
   })
   wipeAll(@CurrentUserId() userId: string) {
     return this.expensesService.wipeAll(userId);

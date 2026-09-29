@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -85,6 +87,25 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
   me(@CurrentUserId() userId: string) {
     return this.usersService.findMe(userId);
+  }
+
+
+  @Delete('me')
+  @HttpCode(200)
+  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ResponseMessage('Cuenta y todos los datos eliminados')
+  @ApiOperation({
+    summary: 'Wipe current user account and all related data',
+    description:
+      'DANGER: permanently deletes the User row and all owned data ' +
+      '(expenses, credits, categories, processed inbound emails). ' +
+      'Requires X-User-Id. Prefer this over DELETE /expenses for a full reset.',
+  })
+  @ApiResponse({ status: 200, description: 'Account wiped (envelope)' })
+  @ApiResponse({ status: 400, description: 'Missing/invalid X-User-Id', type: ApiFailureResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
+  wipeMe(@CurrentUserId() userId: string) {
+    return this.usersService.wipeMe(userId);
   }
 
   @Get(':id')

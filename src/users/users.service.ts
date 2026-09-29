@@ -109,6 +109,36 @@ export class UsersService {
     }
   }
 
+  /**
+   * Full account wipe: delete all user-owned rows, then the User itself.
+   * Order matters because Expense → Category is onDelete: Restrict.
+   * User→children already have onDelete: Cascade; explicit deletes keep Restrict safe.
+   */
+  async wipeMe(userId: string) {
+    await this.findMe(userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const expenses = await tx.expense.deleteMany({ where: { userId } });
+      const credits = await tx.credit.deleteMany({ where: { userId } });
+      const categories = await tx.category.deleteMany({ where: { userId } });
+      const inbound = await tx.processedInboundEmail.deleteMany({
+        where: { userId },
+      });
+      await tx.user.delete({ where: { id: userId } });
+
+      return {
+        deleted: true,
+        userId,
+        counts: {
+          expenses: expenses.count,
+          credits: credits.count,
+          categories: categories.count,
+          processedInboundEmails: inbound.count,
+        },
+      };
+    });
+  }
+
   private rethrowUniqueEmail(error: unknown): void {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
