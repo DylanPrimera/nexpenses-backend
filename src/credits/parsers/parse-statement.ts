@@ -68,6 +68,18 @@ export function parseCreditStatement(
   );
   parsed.rateEa = rates.rateEa;
   parsed.rateMv = rates.rateMv;
+
+
+  if (
+    kind === 'CONSUMO' &&
+    !isPresentMoney(parsed.installmentAmount)
+  ) {
+    const fallback = [parsed.minPayment, parsed.amountDueThisPeriod].find(
+      (value) => isPresentMoney(value),
+    );
+    if (fallback != null) parsed.installmentAmount = fallback;
+  }
+
   assertCritical(parsed);
   return parsed;
 }

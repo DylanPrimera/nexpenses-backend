@@ -19,11 +19,16 @@ export class CreateCreditDto {
   @IsEnum(CreditKind)
   kind: CreditKind;
 
-  @ApiProperty({ enum: CreditProvider, example: CreditProvider.GENERIC })
+  @ApiPropertyOptional({
+    enum: CreditProvider,
+    example: CreditProvider.GENERIC,
+    description: 'Defaults to GENERIC when omitted (manual create without statement).',
+  })
+  @IsOptional()
   @IsEnum(CreditProvider)
-  provider: CreditProvider;
+  provider?: CreditProvider;
 
-  @ApiProperty({ example: 'Lulo bank', maxLength: 80 })
+  @ApiProperty({ example: 'Bancolombia', maxLength: 80 })
   @IsString()
   @MinLength(1)
   @MaxLength(80)

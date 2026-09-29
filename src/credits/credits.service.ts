@@ -44,22 +44,34 @@ export class CreditsService {
     this.assertPaymentField(dto.kind, dto.minPayment, dto.installmentAmount);
     await this.assertCapacity(userId);
 
+    const displayName = dto.displayName.trim();
+    const bankName = (dto.bankName?.trim() || displayName);
+    const normalized: CreateCreditDto = {
+      ...dto,
+      displayName,
+      bankName,
+      provider: dto.provider ?? 'GENERIC',
+    };
+
     const rates = resolveRates(
       { rateEa: null, rateMv: null },
-      { rateEa: dto.rateEa ?? null, rateMv: dto.rateMv ?? null },
+      { rateEa: normalized.rateEa ?? null, rateMv: normalized.rateMv ?? null },
     );
-    let periodInterest = dto.periodInterest ?? null;
-    if (periodInterest == null && (dto.rateEa != null || dto.rateMv != null)) {
+    let periodInterest = normalized.periodInterest ?? null;
+    if (
+      periodInterest == null &&
+      (normalized.rateEa != null || normalized.rateMv != null)
+    ) {
       periodInterest = projectFromRates(
         this.projectionInput({
-          kind: dto.kind,
-          remainingBalance: dto.remainingBalance,
-          originalAmount: dto.originalAmount ?? null,
-          termMonths: dto.termMonths ?? null,
-          installmentTotal: dto.installmentTotal ?? null,
-          installmentCurrent: dto.installmentCurrent ?? null,
-          installmentAmount: dto.installmentAmount ?? null,
-          insuranceOrOtherCharges: dto.insuranceOrOtherCharges ?? null,
+          kind: normalized.kind,
+          remainingBalance: normalized.remainingBalance,
+          originalAmount: normalized.originalAmount ?? null,
+          termMonths: normalized.termMonths ?? null,
+          installmentTotal: normalized.installmentTotal ?? null,
+          installmentCurrent: normalized.installmentCurrent ?? null,
+          installmentAmount: normalized.installmentAmount ?? null,
+          insuranceOrOtherCharges: normalized.insuranceOrOtherCharges ?? null,
           rateEa: rates.rateEa,
           rateMv: rates.rateMv,
         }),
@@ -69,7 +81,7 @@ export class CreditsService {
     }
 
     const credit = await this.prisma.credit.create({
-      data: this.toCreateData(userId, dto, {
+      data: this.toCreateData(userId, normalized, {
         rateEa: rates.rateEa,
         rateMv: rates.rateMv,
         periodInterest,
@@ -438,8 +450,8 @@ export class CreditsService {
     return {
       userId,
       kind: dto.kind,
-      provider: dto.provider,
-      bankName: dto.bankName.trim(),
+      provider: dto.provider ?? 'GENERIC',
+      bankName: (dto.bankName?.trim() || dto.displayName.trim()),
       displayName: dto.displayName.trim(),
       productRef: dto.productRef?.trim() || null,
       cutoffDate: isoToDate(dto.cutoffDate),

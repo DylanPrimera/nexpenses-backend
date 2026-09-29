@@ -139,6 +139,34 @@ describe('CreditsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('creates a credit manually without provider', async () => {
+    const { prisma, rows } = memoryPrisma();
+    const service = new CreditsService(prisma, {
+      consume: async () => {
+        throw new Error('should not parse');
+      },
+    } as unknown as StatementFileService);
+    const created = await service.create(
+      'user-1',
+      {
+        kind: 'TC',
+        displayName: 'Visa Manual',
+        bankName: 'Bancolombia',
+        nextPaymentDate: '2026-10-20',
+        remainingBalance: 500000,
+        minPayment: 50000,
+        rateEa: 28.5,
+      },
+      now,
+    );
+    expect(created.displayName).toBe('Visa Manual');
+    expect(created.bankName).toBe('Bancolombia');
+    expect(created.provider).toBe('GENERIC');
+    expect(created.remainingBalance).toBe(500000);
+    expect(created.minPayment).toBe(50000);
+    expect(rows[0]?.rawExtract).toMatchObject({ source: 'manual' });
+  });
+
   it('recalculates a consumer projection when rates are patched', async () => {
     const { prisma, rows } = memoryPrisma();
     const service = new CreditsService(prisma, {

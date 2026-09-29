@@ -40,7 +40,15 @@ export class CreditsController {
 
   @Post()
   @ResponseMessage('Crédito creado correctamente')
-  @ApiOperation({ summary: 'Create a credit manually' })
+  @ApiOperation({
+    summary: 'Create a credit manually (no statement PDF)',
+    description:
+      'Use when the user enters essentials by hand or after a failed PDF parse. ' +
+      'Required: kind, displayName, bankName, nextPaymentDate, remainingBalance, and ' +
+      'minPayment (TC) or installmentAmount (CONSUMO). ' +
+      'provider defaults to GENERIC. ' +
+      'Rates EA/MV are optional. Maximum 10 credits per user.',
+  })
   create(@CurrentUserId() userId: string, @Body() dto: CreateCreditDto) {
     return this.creditsService.create(userId, dto);
   }

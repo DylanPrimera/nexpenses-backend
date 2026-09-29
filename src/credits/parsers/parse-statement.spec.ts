@@ -161,6 +161,7 @@ describe('parseCreditStatement inline samples', () => {
     expect(parsed.remainingBalance).toBe(2485328.72);
     expect(parsed.minPayment).toBe(586837.44);
     expect(parsed.amountDueThisPeriod).toBe(1416620.38);
+    expect(parsed.installmentAmount).toBe(586837.44);
     expect(parsed.periodInterest).toBe(51413.67);
     expect(parsed.insuranceOrOtherCharges).toBe(1545.18);
     expect(parsed.nextPaymentDate).toBe('2026-10-07');

@@ -44,6 +44,17 @@ export function parseNu(
     text,
     /(\$[\d.,]+)\s*Deuda a pagar este mes/i,
   );
+  parsed.installmentAmount =
+    matchMoney(text, /Valor a pagar cuota\s*(\$[\d.,]+)/i) ??
+    matchMoney(text, /Valor cuota\s*(\$[\d.,]+)/i) ??
+    matchMoney(text, /Cuota mensual\s*(\$[\d.,]+)/i);
+  if (
+    kind === 'CONSUMO' &&
+    parsed.installmentAmount == null
+  ) {
+    parsed.installmentAmount =
+      parsed.minPayment ?? parsed.amountDueThisPeriod ?? null;
+  }
   parsed.periodInterest = matchMoney(text, /\+\s*(\$[\d.,]+)\s*Intereses\b/i);
   parsed.insuranceOrOtherCharges = charges.length
     ? Math.round(charges.reduce((sum, value) => sum + value, 0) * 100) / 100
