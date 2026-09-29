@@ -1,0 +1,17 @@
+-- AlterEnum: expand CreditProvider to all ColombianBankCode dictionary values + GENERIC
+ALTER TYPE "CreditProvider" ADD VALUE 'BANCOLOMBIA';
+ALTER TYPE "CreditProvider" ADD VALUE 'DAVIVIENDA';
+ALTER TYPE "CreditProvider" ADD VALUE 'BBVA';
+ALTER TYPE "CreditProvider" ADD VALUE 'BANCO_OCCIDENTE';
+ALTER TYPE "CreditProvider" ADD VALUE 'BANCO_POPULAR';
+ALTER TYPE "CreditProvider" ADD VALUE 'AV_VILLAS';
+ALTER TYPE "CreditProvider" ADD VALUE 'CAJA_SOCIAL';
+ALTER TYPE "CreditProvider" ADD VALUE 'SCOTIABANK_COLPATRIA';
+ALTER TYPE "CreditProvider" ADD VALUE 'NEQUI';
+ALTER TYPE "CreditProvider" ADD VALUE 'RAPPICARD';
+ALTER TYPE "CreditProvider" ADD VALUE 'FALABELLA';
+ALTER TYPE "CreditProvider" ADD VALUE 'PICHINCHA';
+ALTER TYPE "CreditProvider" ADD VALUE 'AGRARIO';
+ALTER TYPE "CreditProvider" ADD VALUE 'SERFINANZA';
+ALTER TYPE "CreditProvider" ADD VALUE 'BAN100';
+ALTER TYPE "CreditProvider" ADD VALUE 'IRIS';
