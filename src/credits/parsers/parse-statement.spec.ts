@@ -234,7 +234,7 @@ describe('parseCreditStatement inline samples', () => {
 
   it('uses parseGeneric for dictionary banks without a dedicated adapter', () => {
     const parsed = parseCreditStatement(samples.bancolombia, 'TC');
-    expect(parsed.provider).toBe('GENERIC');
+    expect(parsed.provider).toBe('BANCOLOMBIA');
     expect(parsed.bankName).toBe('Bancolombia');
     expect(parsed.remainingBalance).toBe(1250000);
     expect(parsed.minPayment).toBe(180000);
@@ -244,7 +244,7 @@ describe('parseCreditStatement inline samples', () => {
 
   it('parses Davivienda consumo via generic without wrong-kind errors', () => {
     const parsed = parseCreditStatement(samples.davivienda, 'CONSUMO');
-    expect(parsed.provider).toBe('GENERIC');
+    expect(parsed.provider).toBe('DAVIVIENDA');
     expect(parsed.bankName).toBe('Davivienda');
     expect(parsed.remainingBalance).toBe(2100000);
     expect(parsed.installmentAmount).toBe(350000);
@@ -254,12 +254,12 @@ describe('parseCreditStatement inline samples', () => {
 
   it('parses Nequi via dictionary + generic for either kind', () => {
     const asTc = parseCreditStatement(samples.nequi, 'TC');
-    expect(asTc.provider).toBe('GENERIC');
+    expect(asTc.provider).toBe('NEQUI');
     expect(asTc.bankName).toBe('Nequi');
     expect(asTc.remainingBalance).toBe(800000);
 
     const asConsumo = parseCreditStatement(samples.nequi, 'CONSUMO');
-    expect(asConsumo.provider).toBe('GENERIC');
+    expect(asConsumo.provider).toBe('NEQUI');
     expect(asConsumo.bankName).toBe('Nequi');
   });
 

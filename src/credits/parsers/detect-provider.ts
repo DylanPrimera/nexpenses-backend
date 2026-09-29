@@ -1,14 +1,14 @@
 import {
   bankLabel,
   matchColombianBank,
-  toPersistedProvider,
   type ColombianBankCode,
+  type CreditProviderCode,
 } from './colombian-banks.js';
 import {
   isRegistryEntryActive,
   PROVIDER_REGISTRY,
 } from './provider-registry.js';
-import type { CreditKindCode, CreditProviderCode, ParsedStatement } from './types.js';
+import type { CreditKindCode, ParsedStatement } from './types.js';
 
 export function foldText(text: string): string {
   return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -59,5 +59,5 @@ export function kindLabel(kind: CreditKindCode): string {
 export function resolvePersistedProvider(
   detected: ColombianBankCode,
 ): CreditProviderCode {
-  return toPersistedProvider(detected);
+  return detected;
 }

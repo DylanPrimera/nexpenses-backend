@@ -1,6 +1,7 @@
+import type { CreditProviderCode } from './colombian-banks.js';
+
 export type CreditKindCode = 'TC' | 'CONSUMO';
-export type CreditProviderCode =
-  'NU' | 'LULO' | 'ICETEX' | 'BANCO_BOGOTA' | 'GENERIC';
+export type { CreditProviderCode };
 
 export type ParsedStatement = {
   provider: CreditProviderCode;

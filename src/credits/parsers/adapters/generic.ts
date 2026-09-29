@@ -34,9 +34,10 @@ export function parseGeneric(
 ): ParsedStatement {
   const folded = foldText(text);
   const matched = matchColombianBank(folded);
+  const provider = matched?.code ?? 'GENERIC';
   const bankName = matched?.label ?? 'Otro';
 
-  const parsed = blankStatement('GENERIC', kind, bankName);
+  const parsed = blankStatement(provider, kind, bankName);
   const source = scrub(text);
 
   parsed.remainingBalance = firstMoney(source, [
