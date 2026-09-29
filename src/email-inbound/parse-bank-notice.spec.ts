@@ -1,17 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseBankNotice } from './parse-bank-notice.js';
 
-const here = dirname(fileURLToPath(import.meta.url));
-
 describe('parseBankNotice', () => {
-  it('parses Banco de Bogotá transfer forward with *Monto:* markdown', () => {
-    const raw = readFileSync(
-      join(here, '__fixtures__/banco-bogota-transfer-forward.txt'),
-      'utf8',
-    );
+  it('parses an anonymized Banco de Bogotá transfer with *Monto:* markdown', () => {
+    const raw = [
+      'Transferiste a la cuenta destino: 3023226053',
+      '*Monto:* $28,000',
+      'Canal: Banca Móvil',
+      'Referencia: 18680700104911522988594487087780118',
+    ].join('\n');
     const notice = parseBankNotice(raw);
     expect(notice.amount).toBe(28000);
     expect(notice.merchant).toBe('3023226053');

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -52,4 +53,20 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'When set, the expense payment decreases that credit remainingBalance (floor 0)',
+  })
+  @IsOptional()
+  @IsUUID()
+  creditId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'For CONSUMO credits, increment installmentCurrent when this payment is recorded',
+  })
+  @IsOptional()
+  @IsBoolean()
+  advanceInstallment?: boolean;
 }

@@ -12,6 +12,7 @@ import { ExpensesModule } from './expenses/expenses.module.js';
 import { SummaryModule } from './summary/summary.module.js';
 import { HistoryModule } from './history/history.module.js';
 import { EmailInboundModule } from './email-inbound/email-inbound.module.js';
+import { CreditsModule } from './credits/credits.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { EmailInboundModule } from './email-inbound/email-inbound.module.js';
     SummaryModule,
     HistoryModule,
     EmailInboundModule,
+    CreditsModule,
   ],
   controllers: [AppController],
   providers: [

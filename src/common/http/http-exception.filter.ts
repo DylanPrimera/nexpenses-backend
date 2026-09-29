@@ -35,6 +35,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return this.fromPrisma(exception);
     }
 
+    if (
+      exception instanceof Error &&
+      'code' in exception &&
+      (exception as { code?: string }).code === 'LIMIT_FILE_SIZE'
+    ) {
+      return {
+        success: false,
+        data: null,
+        message: 'El PDF supera el tamaño máximo permitido (8 MB)',
+        error: {
+          statusCode: HttpStatus.BAD_REQUEST,
+          code: 'BAD_REQUEST',
+        },
+      };
+    }
+
     this.logger.error(
       'Unhandled exception',
       exception instanceof Error ? exception.stack : String(exception),
@@ -81,8 +97,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     const code =
-      codeOverride ??
-      this.codeFromStatus(statusCode, Boolean(details?.length));
+      codeOverride ?? this.codeFromStatus(statusCode, Boolean(details?.length));
 
     if (statusCode >= 500) {
       this.logger.error(message, exception.stack);
