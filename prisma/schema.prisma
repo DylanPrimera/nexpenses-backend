@@ -23,7 +23,37 @@ model User {
   updatedAt             DateTime                @updatedAt
   categories            Category[]
   expenses              Expense[]
+  credits               Credit[]
   processedInboundEmails ProcessedInboundEmail[]
+}
+
+enum CreditKind {
+  TC
+  CONSUMO
+}
+
+enum CreditProvider {
+  NU
+  LULO
+  ICETEX
+  BANCO_BOGOTA
+  BANCOLOMBIA
+  DAVIVIENDA
+  BBVA
+  BANCO_OCCIDENTE
+  BANCO_POPULAR
+  AV_VILLAS
+  CAJA_SOCIAL
+  SCOTIABANK_COLPATRIA
+  NEQUI
+  RAPPICARD
+  FALABELLA
+  PICHINCHA
+  AGRARIO
+  SERFINANZA
+  BAN100
+  IRIS
+  GENERIC
 }
 
 model Category {
@@ -53,17 +83,59 @@ model Expense {
   updatedAt   DateTime    @updatedAt
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   category               Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  credit                 Credit?                 @relation(fields: [creditId], references: [id], onDelete: SetNull)
   processedInboundEmails ProcessedInboundEmail[]
+  creditId                   String?
+  creditBalanceApplied       Decimal                 @default(0) @db.Decimal(14, 2)
+  creditInstallmentAdvanced  Boolean                 @default(false)
 
   @@index([userId])
   @@index([categoryId])
   @@index([userId, date])
+  @@index([creditId])
+}
+
+model Credit {
+  id                       String         @id @default(uuid())
+  userId                   String
+  kind                     CreditKind
+  provider                 CreditProvider
+  bankName                 String
+  displayName              String
+  productRef               String?
+  cutoffDate               DateTime?
+  nextPaymentDate          DateTime?
+  daysPastDue              Int            @default(0)
+  remainingBalance         Decimal        @db.Decimal(14, 2)
+  periodInterest           Decimal?       @db.Decimal(14, 2)
+  insuranceOrOtherCharges  Decimal?       @db.Decimal(14, 2)
+  rateEa                   Decimal?       @db.Decimal(8, 4)
+  rateMv                   Decimal?       @db.Decimal(8, 4)
+  creditLimit              Decimal?       @db.Decimal(14, 2)
+  availableCredit          Decimal?       @db.Decimal(14, 2)
+  usedAmount               Decimal?       @db.Decimal(14, 2)
+  minPayment               Decimal?       @db.Decimal(14, 2)
+  amountDueThisPeriod      Decimal?       @db.Decimal(14, 2)
+  installmentAmount        Decimal?       @db.Decimal(14, 2)
+  installmentCurrent       Int?
+  installmentTotal         Int?
+  originalAmount           Decimal?       @db.Decimal(14, 2)
+  termMonths               Int?
+  installmentType          String?
+  stage                    String?
+  rawExtract               Json
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  user                     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses                 Expense[]
+
+  @@index([userId])
+  @@index([userId, nextPaymentDate])
 }
 
 model ProcessedInboundEmail {
   id          String   @id @default(uuid())
   messageId   String   @unique
-  /** Stable key for the bank transaction (auth # or content hash). Dedupes re-forwards. */
   fingerprint String
   userId      String
   processedAt DateTime @default(now())

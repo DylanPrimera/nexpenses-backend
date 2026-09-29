@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -10,6 +11,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { PaymentType } from '@prisma/client';
 
@@ -49,4 +51,21 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Link, move, or clear the credit this expense pays',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  creditId?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'For CONSUMO credits, increment installmentCurrent when newly linking this payment',
+  })
+  @IsOptional()
+  @IsBoolean()
+  advanceInstallment?: boolean;
 }
