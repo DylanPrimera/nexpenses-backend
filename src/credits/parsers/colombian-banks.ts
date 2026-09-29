@@ -1,33 +1,10 @@
-export type ColombianBankCode =
-  | 'NU'
-  | 'LULO'
-  | 'ICETEX'
-  | 'BANCO_BOGOTA'
-  | 'BANCOLOMBIA'
-  | 'DAVIVIENDA'
-  | 'BBVA'
-  | 'BANCO_OCCIDENTE'
-  | 'BANCO_POPULAR'
-  | 'AV_VILLAS'
-  | 'CAJA_SOCIAL'
-  | 'SCOTIABANK_COLPATRIA'
-  | 'NEQUI'
-  | 'RAPPICARD'
-  | 'FALABELLA'
-  | 'PICHINCHA'
-  | 'AGRARIO'
-  | 'SERFINANZA'
-  | 'BAN100'
-  | 'IRIS'
-  | 'GENERIC';
-
 export type ColombianBankEntry = {
-  code: ColombianBankCode;
+  code: string;
   label: string;
   aliases: readonly string[];
 };
 
-export const COLOMBIAN_BANKS: readonly ColombianBankEntry[] = [
+export const COLOMBIAN_BANKS = [
   {
     code: 'NU',
     label: 'Nu',
@@ -140,17 +117,20 @@ export const COLOMBIAN_BANKS: readonly ColombianBankEntry[] = [
     label: 'Iris',
     aliases: ['iris bank', 'banco iris', 'iris'],
   },
-] as const;
+] as const satisfies readonly ColombianBankEntry[];
 
-export const PERSISTED_PROVIDER_CODES = [
-  'NU',
-  'LULO',
-  'ICETEX',
-  'BANCO_BOGOTA',
+/** Dictionary bank codes plus GENERIC for unrecognized statements. */
+export type ColombianBankCode =
+  | (typeof COLOMBIAN_BANKS)[number]['code']
+  | 'GENERIC';
+
+/** Unified credit provider code — same as ColombianBankCode. */
+export type CreditProviderCode = ColombianBankCode;
+
+export const CREDIT_PROVIDER_CODES = [
+  ...COLOMBIAN_BANKS.map((entry) => entry.code),
   'GENERIC',
-] as const;
-
-export type PersistedProviderCode = (typeof PERSISTED_PROVIDER_CODES)[number];
+] as const satisfies readonly CreditProviderCode[];
 
 const ALIAS_INDEX: { alias: string; code: ColombianBankCode; label: string }[] =
   COLOMBIAN_BANKS.flatMap((entry) =>
@@ -161,27 +141,12 @@ const ALIAS_INDEX: { alias: string; code: ColombianBankCode; label: string }[] =
     })),
   ).sort((a, b) => b.alias.length - a.alias.length);
 
-const LABEL_BY_CODE = new Map<ColombianBankCode, string>(
+const LABEL_BY_CODE = new Map<string, string>(
   COLOMBIAN_BANKS.map((entry) => [entry.code, entry.label]),
 );
 
 export function bankLabel(code: ColombianBankCode): string {
   return LABEL_BY_CODE.get(code) ?? 'el banco';
-}
-
-export function toPersistedProvider(
-  code: ColombianBankCode,
-): PersistedProviderCode {
-  if (
-    code === 'NU' ||
-    code === 'LULO' ||
-    code === 'ICETEX' ||
-    code === 'BANCO_BOGOTA' ||
-    code === 'GENERIC'
-  ) {
-    return code;
-  }
-  return 'GENERIC';
 }
 
 export function matchColombianBank(
