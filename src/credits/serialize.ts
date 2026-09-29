@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import type { CreditProviderCode } from './parsers/colombian-banks.js';
 import { round2, round4, num } from './domain/money.js';
 import { creditBadge, type CreditBadge } from './domain/status.js';
 
@@ -36,7 +37,7 @@ type CreditRow = {
   id: string;
   userId: string;
   kind: 'TC' | 'CONSUMO';
-  provider: 'NU' | 'LULO' | 'ICETEX' | 'BANCO_BOGOTA' | 'GENERIC';
+  provider: CreditProviderCode;
   bankName: string;
   displayName: string;
   productRef: string | null;
