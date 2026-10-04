@@ -38,8 +38,10 @@ export class ExpensesController {
   @ApiOperation({
     summary: 'List expenses with filters and pagination',
     description:
-      'Filters: year, month (1–12), categoryId, paymentType, search, limit, offset. ' +
-      'Response data shape: { items, total, limit, offset }. ' +
+      'Filters: year, month (1–12), categoryId, paymentType, search, limit (1–500), offset. ' +
+      'Response data shape: { items, total, totalAmount, limit, offset }. ' +
+      'totalAmount is the sum of amount for the same filters as total. ' +
+      'Order: date DESC, createdAt DESC, id DESC. ' +
       'Expenses are kept across months by default (no automatic wipe).',
   })
   findAll(

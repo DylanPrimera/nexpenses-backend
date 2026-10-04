@@ -13,12 +13,12 @@ import {
 } from 'class-validator';
 
 export class FilterExpensesDto {
-  @ApiPropertyOptional({ default: 50 })
+  @ApiPropertyOptional({ default: 50, maximum: 500 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   limit?: number = 50;
 
   @ApiPropertyOptional({ default: 0 })

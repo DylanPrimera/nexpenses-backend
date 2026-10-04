@@ -124,20 +124,25 @@ export class ExpensesService {
       where.date = { gte: start, lt: end };
     }
 
-    const [data, total] = await Promise.all([
+    const [data, total, amount] = await Promise.all([
       this.prisma.expense.findMany({
         where,
         include: expenseInclude,
-        orderBy: { date: 'desc' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
         take: limit,
         skip: offset,
       }),
       this.prisma.expense.count({ where }),
+      this.prisma.expense.aggregate({
+        where,
+        _sum: { amount: true },
+      }),
     ]);
 
     return {
       items: data.map((expense) => this.serialize(expense)),
       total,
+      totalAmount: amount._sum.amount ?? 0,
       limit,
       offset,
     };
