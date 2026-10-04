@@ -9,7 +9,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -23,7 +22,6 @@ import {
   CurrentUserId,
   ResponseMessage,
 } from '../common/decorators/index.js';
-import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { ApiFailureResponseDto } from '../common/http/index.js';
 import { UpdateUserDto } from './dto/index.js';
 import { UsersService } from './users.service.js';
@@ -64,30 +62,6 @@ export class UsersController {
     throw new ForbiddenException(
       'Anonymous registration is disabled. Use auth sign-up.',
     );
-  }
-
-  @Get()
-  @ApiBearerAuth()
-  @ResponseMessage('OK')
-  @ApiOperation({
-    summary: 'List all users (Postman / manual testing only)',
-    description:
-      'Returns paginated users ordered by createdAt desc. Omits emailAppToken. Requires bearer token. ' +
-      'data shape: { items, total, limit, offset }. Intended for local Postman testing — not for production clients.',
-  })
-  @ApiResponse({ status: 200, description: 'Paginated user list (envelope)' })
-  @ApiResponse({
-    status: 400,
-    description: 'Missing/invalid bearer token',
-    type: ApiFailureResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'User not found',
-    type: ApiFailureResponseDto,
-  })
-  findAll(@Query() pagination: PaginationDto) {
-    return this.usersService.findAll(pagination);
   }
 
   @Get('me')

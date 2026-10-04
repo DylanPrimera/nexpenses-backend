@@ -67,6 +67,14 @@ export class StatementFileService {
       return await extractPdfText(file.buffer);
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
+      if (
+        error instanceof Error &&
+        error.message === 'El PDF supera el máximo de 40 páginas'
+      ) {
+        throw new BadRequestException(
+          'El PDF supera el máximo de 40 páginas',
+        );
+      }
       const detail = formatUnknownError(error);
       this.logger.error(
         `Failed to read statement PDF: ${detail}`,
@@ -111,13 +119,13 @@ export class StatementFileService {
   }
 
   private async destroyRaw(publicId: string): Promise<void> {
-    try {
-      await cloudinary.uploader.destroy(publicId, {
-        resource_type: 'raw',
-        type: 'private',
-        invalidate: true,
-      });
-    } catch {
+    const destroyed = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'raw',
+      type: 'private',
+      invalidate: true,
+    });
+    if (destroyed.result !== 'ok' && destroyed.result !== 'not found') {
+      throw new Error('Cloudinary destroy failed');
     }
   }
 }

@@ -190,7 +190,11 @@ export class EmailInboundService {
     try {
       const lock = await client.getMailboxLock('INBOX');
       try {
-        result.deleted = await this.cleanupOldProcessed(client, cfg.deleteAfterMs);
+        result.deleted = await this.cleanupOldProcessed(
+          client,
+          userId,
+          cfg.deleteAfterMs,
+        );
 
         const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
         const uids = asUidList(await client.search({ since }, { uid: true }));
@@ -346,11 +350,12 @@ export class EmailInboundService {
   /** Borra del buzón mails ya procesados hace más de deleteAfterMs. */
   private async cleanupOldProcessed(
     client: ImapFlow,
+    userId: string,
     deleteAfterMs: number,
   ): Promise<number> {
     const cutoff = new Date(Date.now() - deleteAfterMs);
     const old = await this.prisma.processedInboundEmail.findMany({
-      where: { processedAt: { lte: cutoff } },
+      where: { userId, processedAt: { lte: cutoff } },
       select: { messageId: true },
       take: 200,
     });

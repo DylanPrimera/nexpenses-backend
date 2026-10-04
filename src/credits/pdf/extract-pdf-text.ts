@@ -3,6 +3,9 @@ import { extractText, getDocumentProxy } from 'unpdf';
 export async function extractPdfText(data: Buffer): Promise<string> {
   const pdf = await getDocumentProxy(new Uint8Array(data));
   try {
+    if (pdf.numPages > 40) {
+      throw new Error('El PDF supera el máximo de 40 páginas');
+    }
     const { text } = await extractText(pdf, { mergePages: false });
     const pages = Array.isArray(text) ? text : [text];
     return pages.join('\n').split('\u0000').join('').trim();

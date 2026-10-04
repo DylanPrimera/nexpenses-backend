@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -20,8 +19,11 @@ function normalizeOptionalEmail(
   return trimmed.length === 0 ? null : trimmed.toLowerCase();
 }
 
-function withoutPassword<T extends { password?: string | null }>(user: T) {
-  const { password: _password, ...rest } = user;
+function withoutPassword<T extends {
+  password?: string | null;
+  emailAppToken?: string | null;
+}>(user: T) {
+  const { password: _password, emailAppToken: _emailAppToken, ...rest } = user;
   return rest;
 }
 
@@ -56,28 +58,6 @@ export class UsersService {
       this.rethrowUniqueEmail(error);
       throw error;
     }
-  }
-
-  async findAll(pagination: PaginationDto) {
-    const limit = pagination.limit ?? 50;
-    const offset = pagination.offset ?? 0;
-    const [data, total] = await Promise.all([
-      this.prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
-        select: {
-          id: true,
-          name: true,
-          budget: true,
-          email: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      }),
-      this.prisma.user.count(),
-    ]);
-    return { items: data, total, limit, offset };
   }
 
   async findMe(userId: string) {

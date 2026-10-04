@@ -109,10 +109,13 @@ export class AuthService {
   async migrate(dto: MigrateDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
-      select: { id: true, password: true },
+      select: { id: true, password: true, email: true },
     });
     if (!user) throw new NotFoundException('User not found');
     if (user.password) {
+      throw new ConflictException('Account already exists');
+    }
+    if (!user.email.endsWith('@users.nexpenses.invalid')) {
       throw new ConflictException('Account already exists');
     }
 
