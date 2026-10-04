@@ -69,4 +69,12 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsBoolean()
   advanceInstallment?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Also save amount, category, payment method, title, and description as a reusable recurring template. Ignored for credit installments.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  saveAsRecurring?: boolean;
 }

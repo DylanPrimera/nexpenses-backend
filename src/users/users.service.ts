@@ -51,7 +51,6 @@ export class UsersService {
     }
   }
 
-
   async findAll(pagination: PaginationDto) {
     const limit = pagination.limit ?? 50;
     const offset = pagination.offset ?? 0;
@@ -111,7 +110,7 @@ export class UsersService {
 
   /**
    * Full account wipe: delete all user-owned rows, then the User itself.
-   * Order matters because Expense → Category is onDelete: Restrict.
+   * Order matters because Expense and RecurringExpense → Category are onDelete: Restrict.
    * User→children already have onDelete: Cascade; explicit deletes keep Restrict safe.
    */
   async wipeMe(userId: string) {
@@ -119,6 +118,9 @@ export class UsersService {
 
     return this.prisma.$transaction(async (tx) => {
       const expenses = await tx.expense.deleteMany({ where: { userId } });
+      const recurringExpenses = await tx.recurringExpense.deleteMany({
+        where: { userId },
+      });
       const credits = await tx.credit.deleteMany({ where: { userId } });
       const categories = await tx.category.deleteMany({ where: { userId } });
       const inbound = await tx.processedInboundEmail.deleteMany({
@@ -131,6 +133,7 @@ export class UsersService {
         userId,
         counts: {
           expenses: expenses.count,
+          recurringExpenses: recurringExpenses.count,
           credits: credits.count,
           categories: categories.count,
           processedInboundEmails: inbound.count,

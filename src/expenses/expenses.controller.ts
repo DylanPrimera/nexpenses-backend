@@ -11,10 +11,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentUserId,
-  ResponseMessage,
-} from '../common/decorators/index.js';
+import { CurrentUserId, ResponseMessage } from '../common/decorators/index.js';
+import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import {
   CreateExpenseDto,
   FilterExpensesDto,
@@ -49,6 +47,30 @@ export class ExpensesController {
     @Query() filters: FilterExpensesDto,
   ) {
     return this.expensesService.findAll(userId, filters);
+  }
+
+  @Get('recurring')
+  @ResponseMessage('OK')
+  @ApiOperation({
+    summary: 'List recurring expense templates',
+    description:
+      'Reusable payments owned by the user. Response data shape: { items, total, limit, offset }.',
+  })
+  listRecurring(
+    @CurrentUserId() userId: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.expensesService.listRecurring(userId, pagination);
+  }
+
+  @Delete('recurring/:id')
+  @ResponseMessage('Pago recurrente eliminado')
+  @ApiOperation({ summary: 'Delete a recurring expense template' })
+  removeRecurring(
+    @CurrentUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.expensesService.removeRecurring(userId, id);
   }
 
   @Delete()
