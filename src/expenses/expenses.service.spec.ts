@@ -131,6 +131,15 @@ function memoryPrisma() {
         recurring.set(row.id, row);
         return row;
       },
+      findFirst: async ({ where }: { where: { id: string; userId: string } }) =>
+        [...recurring.values()].find(
+          (row) => row.id === where.id && row.userId === where.userId,
+        ) ?? null,
+      delete: async ({ where }: { where: { id: string } }) => {
+        const row = recurring.get(where.id);
+        recurring.delete(where.id);
+        return row;
+      },
     },
   };
 
@@ -265,5 +274,29 @@ describe('ExpensesService credit balance', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(recurring.size).toBe(1);
+  });
+
+  it('deletes a recurring template only for its owner', async () => {
+    const { prisma, recurring } = memoryPrisma();
+    const service = new ExpensesService(prisma);
+    await service.create('user-1', {
+      amount: 600000,
+      categoryId: 'cat-1',
+      title: 'Mamá',
+      description: 'Mensual',
+      saveAsRecurring: true,
+    });
+    const id = [...recurring.keys()][0];
+
+    await expect(service.removeRecurring('user-2', id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(recurring.size).toBe(1);
+
+    await expect(service.removeRecurring('user-1', id)).resolves.toEqual({
+      deleted: true,
+      id,
+    });
+    expect(recurring.size).toBe(0);
   });
 });

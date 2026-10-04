@@ -169,6 +169,15 @@ export class ExpensesService {
     return { items, total, limit, offset };
   }
 
+  async removeRecurring(userId: string, id: string) {
+    const existing = await this.prisma.recurringExpense.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) throw new NotFoundException('Recurring payment not found');
+    await this.prisma.recurringExpense.delete({ where: { id } });
+    return { deleted: true, id };
+  }
+
   async findOne(userId: string, id: string) {
     const expense = await this.prisma.expense.findFirst({
       where: { id, userId },

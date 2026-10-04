@@ -63,6 +63,16 @@ export class ExpensesController {
     return this.expensesService.listRecurring(userId, pagination);
   }
 
+  @Delete('recurring/:id')
+  @ResponseMessage('Pago recurrente eliminado')
+  @ApiOperation({ summary: 'Delete a recurring expense template' })
+  removeRecurring(
+    @CurrentUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.expensesService.removeRecurring(userId, id);
+  }
+
   @Delete()
   @HttpCode(200)
   @ResponseMessage('Todos los gastos fueron eliminados')
