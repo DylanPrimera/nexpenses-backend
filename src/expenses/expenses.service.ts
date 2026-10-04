@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PaymentType, Prisma } from '@prisma/client';
+import { utcDayDiff } from '../credits/domain/dates.js';
 import { chargeBalance, num, restoreBalance } from '../credits/domain/money.js';
 import { moneyDec } from '../credits/serialize.js';
 import { getLocalNowParts, getUtcDateRange } from '../common/utils/index.js';
@@ -23,8 +24,24 @@ type ExpenseRow = {
   creditId: string | null;
   amount: number;
   creditInstallmentAdvanced: boolean;
+  date: Date;
   userId: string;
 };
+
+const UPCOMING_CUOTA_DAYS = 5;
+
+function shiftUtcMonth(date: Date, delta: number): Date {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + delta;
+  const day = date.getUTCDate();
+  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, last)));
+}
+
+function isUpcomingCuota(paidOn: Date, nextPaymentDate: Date): boolean {
+  const daysBefore = utcDayDiff(nextPaymentDate, paidOn);
+  return daysBefore >= 0 && daysBefore <= UPCOMING_CUOTA_DAYS;
+}
 
 @Injectable()
 export class ExpensesService {
@@ -56,9 +73,11 @@ export class ExpensesService {
     }
 
     const expense = await this.prisma.$transaction(async (tx) => {
+      const paidOn = dto.date ? new Date(dto.date) : new Date();
       const charge = dto.creditId
         ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
             advanceInstallment: dto.advanceInstallment === true,
+            paidOn,
           })
         : { applied: 0, advanced: false };
 
@@ -69,7 +88,7 @@ export class ExpensesService {
           title: dto.title.trim(),
           description: dto.description.trim(),
           paymentType: dto.paymentType ?? PaymentType.debit_card,
-          date: dto.date ? new Date(dto.date) : new Date(),
+          date: paidOn,
           userId,
           creditId: dto.creditId ?? null,
           creditBalanceApplied: moneyDec(charge.applied)!,
@@ -218,6 +237,7 @@ export class ExpensesService {
           creditId: nextCreditId,
           amount: nextAmount,
           advanceInstallment: dto.advanceInstallment === true,
+          paidOn: dto.date ? new Date(dto.date) : existing.date,
         });
         creditBalanceApplied = moneyDec(synced.applied)!;
         creditInstallmentAdvanced = synced.advanced;
@@ -283,7 +303,7 @@ export class ExpensesService {
     userId: string,
     creditId: string,
     amount: number,
-    options: { advanceInstallment: boolean },
+    options: { advanceInstallment: boolean; paidOn: Date },
   ): Promise<{ applied: number; advanced: boolean }> {
     const credit = await tx.credit.findFirst({
       where: { id: creditId, userId },
@@ -305,11 +325,22 @@ export class ExpensesService {
       advanced = true;
     }
 
+    const paysUpcomingCuota =
+      advanced &&
+      credit.nextPaymentDate != null &&
+      isUpcomingCuota(options.paidOn, credit.nextPaymentDate);
+
     await tx.credit.update({
       where: { id: credit.id },
       data: {
         remainingBalance: moneyDec(charged.remainingBalance)!,
         ...(advanced ? { installmentCurrent } : {}),
+        ...(paysUpcomingCuota
+          ? {
+              nextPaymentDate: shiftUtcMonth(credit.nextPaymentDate!, 1),
+              daysPastDue: 0,
+            }
+          : {}),
       },
     });
 
@@ -334,12 +365,16 @@ export class ExpensesService {
         restoreBalance(num(credit.remainingBalance) ?? 0, applied),
       )!,
     };
-    if (
-      revertInstallment &&
-      expense.creditInstallmentAdvanced &&
-      credit.installmentCurrent != null
-    ) {
-      data.installmentCurrent = Math.max(0, credit.installmentCurrent - 1);
+    if (revertInstallment && expense.creditInstallmentAdvanced) {
+      if (credit.installmentCurrent != null) {
+        data.installmentCurrent = Math.max(0, credit.installmentCurrent - 1);
+      }
+      if (credit.nextPaymentDate) {
+        const previousDue = shiftUtcMonth(credit.nextPaymentDate, -1);
+        if (isUpcomingCuota(expense.date, previousDue)) {
+          data.nextPaymentDate = previousDue;
+        }
+      }
     }
     await tx.credit.update({ where: { id: credit.id }, data });
   }
@@ -352,6 +387,7 @@ export class ExpensesService {
       creditId: string | null;
       amount: number;
       advanceInstallment: boolean;
+      paidOn: Date;
     },
   ): Promise<{ applied: number; advanced: boolean }> {
     const sameCredit = existing.creditId === next.creditId;
@@ -365,7 +401,7 @@ export class ExpensesService {
         userId,
         next.creditId,
         next.amount,
-        { advanceInstallment: false },
+        { advanceInstallment: false, paidOn: next.paidOn },
       );
       return {
         applied: charged.applied,
@@ -374,6 +410,7 @@ export class ExpensesService {
     }
     return this.chargeCredit(tx, userId, next.creditId, next.amount, {
       advanceInstallment: next.advanceInstallment,
+      paidOn: next.paidOn,
     });
   }
 }

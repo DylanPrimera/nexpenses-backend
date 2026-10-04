@@ -181,6 +181,69 @@ describe('ExpensesService credit balance', () => {
     expect(credits.get('credit-1')?.installmentCurrent).toBe(5);
   });
 
+  function utcDay(value: unknown): string {
+    const date = value instanceof Date ? value : new Date(String(value));
+    return date.toISOString().slice(0, 10);
+  }
+
+  it('treats a cuota paid up to 5 calendar days early as the upcoming payment', async () => {
+    const { prisma, credits } = memoryPrisma();
+    const credit = credits.get('credit-1')!;
+    credit.daysPastDue = 4;
+    const service = new ExpensesService(prisma);
+
+    const cases = [
+      { due: '2026-10-01', next: '2026-11-01' },
+      { due: '2026-10-05', next: '2026-11-05' },
+    ];
+    for (const item of cases) {
+      credit.nextPaymentDate = new Date(`${item.due}T00:00:00.000Z`);
+      credit.daysPastDue = 4;
+      credit.installmentCurrent = 5;
+      credit.remainingBalance = new Prisma.Decimal('100.50');
+      const expense = await service.create('user-1', {
+        amount: 10,
+        categoryId: 'cat-1',
+        title: 'Cuota',
+        description: 'Pago',
+        creditId: 'credit-1',
+        advanceInstallment: true,
+        date: '2026-09-30T00:00:00.000Z',
+      });
+      expect(utcDay(credits.get('credit-1')?.nextPaymentDate)).toBe(item.next);
+      expect(credits.get('credit-1')?.daysPastDue).toBe(0);
+      await service.remove('user-1', expense.id);
+      expect(utcDay(credits.get('credit-1')?.nextPaymentDate)).toBe(item.due);
+      expect(credits.get('credit-1')?.installmentCurrent).toBe(5);
+    }
+  });
+
+  it('does not move nextPaymentDate when the cuota is paid 6 days early', async () => {
+    const { prisma, credits } = memoryPrisma();
+    const credit = credits.get('credit-1')!;
+    credit.nextPaymentDate = new Date('2026-10-06T00:00:00.000Z');
+    credit.daysPastDue = 4;
+    const service = new ExpensesService(prisma);
+
+    const expense = await service.create('user-1', {
+      amount: 10,
+      categoryId: 'cat-1',
+      title: 'Cuota',
+      description: 'Pago',
+      creditId: 'credit-1',
+      advanceInstallment: true,
+      date: '2026-09-30T00:00:00.000Z',
+    });
+
+    expect(utcDay(credits.get('credit-1')?.nextPaymentDate)).toBe('2026-10-06');
+    expect(credits.get('credit-1')?.daysPastDue).toBe(4);
+    expect(credits.get('credit-1')?.installmentCurrent).toBe(6);
+
+    await service.remove('user-1', expense.id);
+    expect(utcDay(credits.get('credit-1')?.nextPaymentDate)).toBe('2026-10-06');
+    expect(credits.get('credit-1')?.installmentCurrent).toBe(5);
+  });
+
   it('does not restore a balance when the credit was already deleted', async () => {
     const { prisma, credits } = memoryPrisma();
     const service = new ExpensesService(prisma);
