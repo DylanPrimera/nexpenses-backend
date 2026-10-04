@@ -14,17 +14,20 @@ enum PaymentType {
 }
 
 model User {
-  id                    String                  @id @default(uuid())
-  name                  String
-  budget                Int
-  email                 String?                 @unique
-  emailAppToken         String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  categories            Category[]
-  expenses              Expense[]
-  credits               Credit[]
-  recurringExpenses     RecurringExpense[]
+  id                     String                  @id @default(uuid())
+  name                   String
+  firstName              String                  @default("")
+  lastName               String                  @default("")
+  budget                 Int                     @default(0)
+  email                  String                  @unique
+  password               String?
+  emailAppToken          String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  categories             Category[]
+  expenses               Expense[]
+  credits                Credit[]
+  recurringExpenses      RecurringExpense[]
   processedInboundEmails ProcessedInboundEmail[]
 }
 

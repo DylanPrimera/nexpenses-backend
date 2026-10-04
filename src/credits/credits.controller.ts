@@ -15,7 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
-  ApiHeader,
+  ApiBearerAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -33,7 +33,7 @@ import {
 } from './dto/index.js';
 
 @ApiTags('Credits')
-@ApiHeader({ name: 'X-User-Id', required: true })
+@ApiBearerAuth()
 @Controller('credits')
 export class CreditsController {
   constructor(private readonly creditsService: CreditsService) {}
