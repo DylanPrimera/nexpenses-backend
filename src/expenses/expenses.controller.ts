@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUserId, ResponseMessage } from '../common/decorators/index.js';
 import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import {
@@ -21,7 +21,7 @@ import {
 import { ExpensesService } from './expenses.service.js';
 
 @ApiTags('Expenses')
-@ApiHeader({ name: 'X-User-Id', required: true })
+@ApiBearerAuth()
 @Controller('expenses')
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}

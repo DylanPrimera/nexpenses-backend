@@ -1,14 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentUserId,
-  ResponseMessage,
-} from '../common/decorators/index.js';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUserId, ResponseMessage } from '../common/decorators/index.js';
 import { SummaryQueryDto } from './dto/index.js';
 import { SummaryService } from './summary.service.js';
 
 @ApiTags('Summary')
-@ApiHeader({ name: 'X-User-Id', required: true })
+@ApiBearerAuth()
 @Controller('summary')
 export class SummaryController {
   constructor(private readonly summaryService: SummaryService) {}
@@ -22,10 +19,7 @@ export class SummaryController {
       'Year scope (year only): spent vs projectedAnnualBudget (budget×12); ' +
       'returns budgetMonthly + projectedAnnualBudget. daysLeft only for the current month.',
   })
-  getSummary(
-    @CurrentUserId() userId: string,
-    @Query() query: SummaryQueryDto,
-  ) {
+  getSummary(@CurrentUserId() userId: string, @Query() query: SummaryQueryDto) {
     return this.summaryService.getSummary(userId, query);
   }
 }

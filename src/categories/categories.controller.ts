@@ -8,11 +8,8 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentUserId,
-  ResponseMessage,
-} from '../common/decorators/index.js';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUserId, ResponseMessage } from '../common/decorators/index.js';
 import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { CategoriesService } from './categories.service.js';
 import {
@@ -22,7 +19,7 @@ import {
 } from './dto/index.js';
 
 @ApiTags('Categories')
-@ApiHeader({ name: 'X-User-Id', required: true })
+@ApiBearerAuth()
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}

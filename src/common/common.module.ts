@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { UserIdGuard } from './guards/user-id.guard.js';
+import { BearerAuthGuard } from './guards/user-id.guard.js';
 import { HttpExceptionFilter } from './http/http-exception.filter.js';
 import { TransformInterceptor } from './http/transform.interceptor.js';
 
@@ -9,7 +9,7 @@ import { TransformInterceptor } from './http/transform.interceptor.js';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: UserIdGuard,
+      useClass: BearerAuthGuard,
     },
     {
       provide: APP_INTERCEPTOR,

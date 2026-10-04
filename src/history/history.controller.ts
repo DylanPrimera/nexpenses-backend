@@ -1,14 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentUserId,
-  ResponseMessage,
-} from '../common/decorators/index.js';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUserId, ResponseMessage } from '../common/decorators/index.js';
 import { YearlyHistoryQueryDto } from './dto/index.js';
 import { HistoryService } from './history.service.js';
 
 @ApiTags('History')
-@ApiHeader({ name: 'X-User-Id', required: true })
+@ApiBearerAuth()
 @Controller('history')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}

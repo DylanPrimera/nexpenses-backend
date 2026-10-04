@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -11,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {
-  ApiHeader,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -24,7 +25,7 @@ import {
 } from '../common/decorators/index.js';
 import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { ApiFailureResponseDto } from '../common/http/index.js';
-import { CreateUserDto, UpdateUserDto } from './dto/index.js';
+import { UpdateUserDto } from './dto/index.js';
 import { UsersService } from './users.service.js';
 
 @ApiTags('Users')
@@ -35,14 +36,15 @@ export class UsersController {
   @Post()
   @SkipUserId()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ResponseMessage('Usuario creado correctamente')
   @ApiOperation({
-    summary: 'Create user (first visit — no X-User-Id required)',
+    summary: 'Disabled anonymous registration',
     description:
-      'Accepts name + budget and optional email / emailAppToken. Rate-limited to 10 requests/minute. ' +
-      'Response envelope: { success, data: User, message }.',
+      'Users are created by POST /auth/register or POST /auth/google. This route no longer creates a user.',
   })
-  @ApiResponse({ status: 201, description: 'User created (wrapped in envelope)' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created (wrapped in envelope)',
+  })
   @ApiResponse({
     status: 400,
     description: 'Validation error',
@@ -58,60 +60,85 @@ export class UsersController {
     description: 'Too many requests',
     type: ApiFailureResponseDto,
   })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create() {
+    throw new ForbiddenException(
+      'Anonymous registration is disabled. Use auth sign-up.',
+    );
   }
 
   @Get()
-  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ApiBearerAuth()
   @ResponseMessage('OK')
   @ApiOperation({
     summary: 'List all users (Postman / manual testing only)',
     description:
-      'Returns paginated users ordered by createdAt desc. Omits emailAppToken. Requires X-User-Id. ' +
+      'Returns paginated users ordered by createdAt desc. Omits emailAppToken. Requires bearer token. ' +
       'data shape: { items, total, limit, offset }. Intended for local Postman testing — not for production clients.',
   })
   @ApiResponse({ status: 200, description: 'Paginated user list (envelope)' })
-  @ApiResponse({ status: 400, description: 'Missing/invalid X-User-Id', type: ApiFailureResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing/invalid bearer token',
+    type: ApiFailureResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+    type: ApiFailureResponseDto,
+  })
   findAll(@Query() pagination: PaginationDto) {
     return this.usersService.findAll(pagination);
   }
 
   @Get('me')
-  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ApiBearerAuth()
   @ResponseMessage('OK')
-  @ApiOperation({ summary: 'Get current user from X-User-Id' })
+  @ApiOperation({ summary: 'Get current user from bearer token' })
   @ApiResponse({ status: 200, description: 'Current user (envelope)' })
-  @ApiResponse({ status: 400, description: 'Missing/invalid X-User-Id', type: ApiFailureResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing/invalid bearer token',
+    type: ApiFailureResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+    type: ApiFailureResponseDto,
+  })
   me(@CurrentUserId() userId: string) {
     return this.usersService.findMe(userId);
   }
 
-
   @Delete('me')
   @HttpCode(200)
-  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ApiBearerAuth()
   @ResponseMessage('Cuenta y todos los datos eliminados')
   @ApiOperation({
     summary: 'Wipe current user account and all related data',
     description:
       'DANGER: permanently deletes the User row and all owned data ' +
       '(expenses, credits, categories, processed inbound emails). ' +
-      'Requires X-User-Id. Prefer this over DELETE /expenses for a full reset.',
+      'Requires bearer token. Prefer this over DELETE /expenses for a full reset.',
   })
   @ApiResponse({ status: 200, description: 'Account wiped (envelope)' })
-  @ApiResponse({ status: 400, description: 'Missing/invalid X-User-Id', type: ApiFailureResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing/invalid bearer token',
+    type: ApiFailureResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+    type: ApiFailureResponseDto,
+  })
   wipeMe(@CurrentUserId() userId: string) {
     return this.usersService.wipeMe(userId);
   }
 
   @Get(':id')
-  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ApiBearerAuth()
   @ResponseMessage('OK')
-  @ApiOperation({ summary: 'Get user by id (must match X-User-Id)' })
+  @ApiOperation({ summary: 'Get user by id (must match bearer token)' })
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUserId() userId: string,
@@ -120,15 +147,27 @@ export class UsersController {
   }
 
   @Patch('me')
-  @ApiHeader({ name: 'X-User-Id', required: true })
+  @ApiBearerAuth()
   @ResponseMessage('Usuario actualizado correctamente')
   @ApiOperation({
     summary: 'Update name, budget, email, and/or emailAppToken',
   })
   @ApiResponse({ status: 200, description: 'Updated user (envelope)' })
-  @ApiResponse({ status: 400, description: 'Validation error', type: ApiFailureResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found', type: ApiFailureResponseDto })
-  @ApiResponse({ status: 409, description: 'Email already in use', type: ApiFailureResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+    type: ApiFailureResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+    type: ApiFailureResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email already in use',
+    type: ApiFailureResponseDto,
+  })
   updateMe(@CurrentUserId() userId: string, @Body() dto: UpdateUserDto) {
     return this.usersService.updateMe(userId, dto);
   }

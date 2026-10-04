@@ -53,33 +53,28 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'X-User-Id',
-    ],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     credentials: false,
   });
 
   const config = new DocumentBuilder()
     .setTitle('Nexpenses')
     .setDescription(
-      'Nexpenses cloud API — personal COP budget tracker. Identify users via X-User-Id header (no JWT). ' +
-        'Global rate limit: 60 req/min per IP; POST /users is limited to 10 req/min.\n\n' +
+      'Nexpenses cloud API — personal COP budget tracker. Protected routes require Authorization: Bearer. ' +
+        'Global rate limit: 60 req/min per IP.\n\n' +
         '**Response envelope:** every response is `{ success, data, message }`. ' +
         'Errors also include `error: { statusCode, code, details? }`. ' +
         'Paginated lists use `data: { items, total, limit, offset }`.',
     )
     .setVersion('1.0')
-    .addApiKey(
+    .addBearerAuth(
       {
-        type: 'apiKey',
-        in: 'header',
-        name: 'X-User-Id',
-        description: 'UUID of an existing User (required on protected routes)',
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT from /auth/login, /auth/register, /auth/google, or /auth/migrate',
       },
-      'X-User-Id',
+      'bearer',
     )
     .build();
 

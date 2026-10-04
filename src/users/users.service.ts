@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -19,6 +20,11 @@ function normalizeOptionalEmail(
   return trimmed.length === 0 ? null : trimmed.toLowerCase();
 }
 
+function withoutPassword<T extends { password?: string | null }>(user: T) {
+  const { password: _password, ...rest } = user;
+  return rest;
+}
+
 function normalizeOptionalToken(
   value: string | null | undefined,
 ): string | null | undefined {
@@ -37,14 +43,15 @@ export class UsersService {
     const emailAppToken = normalizeOptionalToken(dto.emailAppToken);
 
     try {
-      return await this.prisma.user.create({
+      return withoutPassword(await this.prisma.user.create({
         data: {
           name: dto.name.trim(),
           budget: dto.budget,
-          ...(email !== undefined ? { email } : {}),
+          email:
+            email ?? `legacy+${crypto.randomUUID()}@users.nexpenses.invalid`,
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),
         },
-      });
+      }));
     } catch (error) {
       this.rethrowUniqueEmail(error);
       throw error;
@@ -76,7 +83,7 @@ export class UsersService {
   async findMe(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return withoutPassword(user);
   }
 
   async findOne(id: string, requesterId: string) {
@@ -91,17 +98,20 @@ export class UsersService {
 
     const email = normalizeOptionalEmail(dto.email);
     const emailAppToken = normalizeOptionalToken(dto.emailAppToken);
+    if (email === null) {
+      throw new BadRequestException('Email cannot be cleared');
+    }
 
     try {
-      return await this.prisma.user.update({
+      return withoutPassword(await this.prisma.user.update({
         where: { id: userId },
         data: {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
           ...(dto.budget !== undefined ? { budget: dto.budget } : {}),
-          ...(email !== undefined ? { email } : {}),
+          ...(typeof email === 'string' ? { email } : {}),
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),
         },
-      });
+      }));
     } catch (error) {
       this.rethrowUniqueEmail(error);
       throw error;

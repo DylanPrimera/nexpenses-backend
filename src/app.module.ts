@@ -13,6 +13,7 @@ import { SummaryModule } from './summary/summary.module.js';
 import { HistoryModule } from './history/history.module.js';
 import { EmailInboundModule } from './email-inbound/email-inbound.module.js';
 import { CreditsModule } from './credits/credits.module.js';
+import { NexpensesAuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CreditsModule } from './credits/credits.module.js';
       },
     ]),
     PrismaModule,
+    NexpensesAuthModule,
     CommonModule,
     UsersModule,
     CategoriesModule,
