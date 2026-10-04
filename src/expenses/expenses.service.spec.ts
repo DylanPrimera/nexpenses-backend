@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { num } from '../credits/domain/money.js';
@@ -21,6 +21,7 @@ function memoryPrisma() {
   const categories = new Map<string, AnyRow>();
   const credits = new Map<string, AnyRow>();
   const expenses = new Map<string, AnyRow>();
+  const recurring = new Map<string, AnyRow>();
   let seq = 0;
 
   categories.set('cat-1', {
@@ -124,6 +125,13 @@ function memoryPrisma() {
         return { count };
       },
     },
+    recurringExpense: {
+      create: async ({ data }: { data: AnyRow }) => {
+        const row = { ...data, id: `rec-${++seq}` };
+        recurring.set(row.id, row);
+        return row;
+      },
+    },
   };
 
   const prisma = {
@@ -136,6 +144,7 @@ function memoryPrisma() {
     credits,
     expenses,
     categories,
+    recurring,
   };
 }
 
@@ -221,5 +230,40 @@ describe('ExpensesService credit balance', () => {
     expect(expenses.size).toBe(0);
     expect(num(credits.get('credit-1')?.remainingBalance)).toBe(100.5);
     expect(credits.get('credit-1')?.installmentCurrent).toBe(5);
+  });
+
+  it('saves a recurring template and rejects one tied to a credit', async () => {
+    const { prisma, recurring } = memoryPrisma();
+    const service = new ExpensesService(prisma);
+
+    await service.create('user-1', {
+      amount: 600000,
+      categoryId: 'cat-1',
+      title: 'Mamá',
+      description: 'Mensual',
+      saveAsRecurring: true,
+    });
+
+    expect(recurring.size).toBe(1);
+    expect([...recurring.values()][0]).toMatchObject({
+      amount: 600000,
+      categoryId: 'cat-1',
+      title: 'Mamá',
+      description: 'Mensual',
+      paymentType: 'debit_card',
+      userId: 'user-1',
+    });
+
+    await expect(
+      service.create('user-1', {
+        amount: 10,
+        categoryId: 'cat-1',
+        title: 'Cuota',
+        description: 'Pago',
+        creditId: 'credit-1',
+        saveAsRecurring: true,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(recurring.size).toBe(1);
   });
 });

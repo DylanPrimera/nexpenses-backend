@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PaymentType, Prisma } from '@prisma/client';
 import { chargeBalance, num, restoreBalance } from '../credits/domain/money.js';
 import { moneyDec } from '../credits/serialize.js';
 import { getLocalNowParts, getUtcDateRange } from '../common/utils/index.js';
+import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { FilterExpensesDto } from './dto/filter-expenses.dto.js';
@@ -44,6 +49,11 @@ export class ExpensesService {
 
   async create(userId: string, dto: CreateExpenseDto) {
     await this.assertCategoryOwned(userId, dto.categoryId);
+    if (dto.saveAsRecurring && dto.creditId) {
+      throw new BadRequestException(
+        'A credit installment cannot be saved as a recurring payment',
+      );
+    }
 
     const expense = await this.prisma.$transaction(async (tx) => {
       const charge = dto.creditId
@@ -67,6 +77,19 @@ export class ExpensesService {
         },
         include: expenseInclude,
       });
+
+      if (dto.saveAsRecurring) {
+        await tx.recurringExpense.create({
+          data: {
+            amount: dto.amount,
+            categoryId: dto.categoryId,
+            title: dto.title.trim(),
+            description: dto.description.trim(),
+            paymentType: dto.paymentType ?? PaymentType.debit_card,
+            userId,
+          },
+        });
+      }
 
       await tx.category.update({
         where: { id: dto.categoryId },
@@ -118,6 +141,32 @@ export class ExpensesService {
       limit,
       offset,
     };
+  }
+
+  async listRecurring(userId: string, pagination: PaginationDto) {
+    const limit = pagination.limit ?? 50;
+    const offset = pagination.offset ?? 0;
+    const where = { userId };
+    const [items, total] = await Promise.all([
+      this.prisma.recurringExpense.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+        select: {
+          id: true,
+          amount: true,
+          categoryId: true,
+          title: true,
+          description: true,
+          paymentType: true,
+          createdAt: true,
+          category: { select: { id: true, name: true, color: true } },
+        },
+      }),
+      this.prisma.recurringExpense.count({ where }),
+    ]);
+    return { items, total, limit, offset };
   }
 
   async findOne(userId: string, id: string) {
