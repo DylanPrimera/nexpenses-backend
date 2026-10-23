@@ -4,8 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PaymentType, Prisma } from '@prisma/client';
-import { utcDayDiff } from '../credits/domain/dates.js';
 import { chargeBalance, num, restoreBalance } from '../credits/domain/money.js';
+import {
+  applyCuotaPayment,
+  revertCuotaPayment,
+  type CuotaShift,
+} from '../credits/domain/schedule.js';
 import { moneyDec } from '../credits/serialize.js';
 import { getLocalNowParts, getUtcDateRange } from '../common/utils/index.js';
 import { PaginationDto } from '../common/dtos/pagination.dto.js';
@@ -20,28 +24,23 @@ const expenseInclude = {
 } satisfies Prisma.ExpenseInclude;
 
 type ExpenseRow = {
+  id: string;
   creditBalanceApplied: unknown;
   creditId: string | null;
   amount: number;
   creditInstallmentAdvanced: boolean;
+  creditDueBefore: Date | null;
+  creditDaysPastDueBefore: number | null;
   date: Date;
   userId: string;
 };
 
-const UPCOMING_CUOTA_DAYS = 5;
-
-function shiftUtcMonth(date: Date, delta: number): Date {
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + delta;
-  const day = date.getUTCDate();
-  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(day, last)));
-}
-
-function isUpcomingCuota(paidOn: Date, nextPaymentDate: Date): boolean {
-  const daysBefore = utcDayDiff(nextPaymentDate, paidOn);
-  return daysBefore >= 0 && daysBefore <= UPCOMING_CUOTA_DAYS;
-}
+type CreditCharge = {
+  applied: number;
+  advanced: boolean;
+  dueBefore: Date | null;
+  daysPastDueBefore: number | null;
+};
 
 @Injectable()
 export class ExpensesService {
@@ -57,9 +56,20 @@ export class ExpensesService {
     return category;
   }
 
-  private serialize<T extends { creditBalanceApplied: unknown }>(expense: T) {
+  private serialize<
+    T extends {
+      creditBalanceApplied: unknown;
+      creditDueBefore?: Date | null;
+      creditDaysPastDueBefore?: number | null;
+    },
+  >(expense: T) {
+    const {
+      creditDueBefore: _creditDueBefore,
+      creditDaysPastDueBefore: _creditDaysPastDueBefore,
+      ...rest
+    } = expense;
     return {
-      ...expense,
+      ...rest,
       creditBalanceApplied: num(expense.creditBalanceApplied) ?? 0,
     };
   }
@@ -74,12 +84,17 @@ export class ExpensesService {
 
     const expense = await this.prisma.$transaction(async (tx) => {
       const paidOn = dto.date ? new Date(dto.date) : new Date();
-      const charge = dto.creditId
+      const charge: CreditCharge = dto.creditId
         ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
             advanceInstallment: dto.advanceInstallment === true,
             paidOn,
           })
-        : { applied: 0, advanced: false };
+        : {
+            applied: 0,
+            advanced: false,
+            dueBefore: null,
+            daysPastDueBefore: null,
+          };
 
       const created = await tx.expense.create({
         data: {
@@ -93,6 +108,8 @@ export class ExpensesService {
           creditId: dto.creditId ?? null,
           creditBalanceApplied: moneyDec(charge.applied)!,
           creditInstallmentAdvanced: charge.advanced,
+          creditDueBefore: charge.dueBefore,
+          creditDaysPastDueBefore: charge.daysPastDueBefore,
         },
         include: expenseInclude,
       });
@@ -230,7 +247,7 @@ export class ExpensesService {
 
     const expense = await this.prisma.$transaction(async (tx) => {
       let creditBalanceApplied = existing.creditBalanceApplied;
-      let creditInstallmentAdvanced = existing.creditInstallmentAdvanced;
+      let schedulePatch: Prisma.ExpenseUpdateInput = {};
 
       if (creditTouched) {
         const synced = await this.syncCreditLink(tx, userId, existing, {
@@ -240,7 +257,13 @@ export class ExpensesService {
           paidOn: dto.date ? new Date(dto.date) : existing.date,
         });
         creditBalanceApplied = moneyDec(synced.applied)!;
-        creditInstallmentAdvanced = synced.advanced;
+        if (!synced.preserveSchedule) {
+          schedulePatch = {
+            creditInstallmentAdvanced: synced.advanced,
+            creditDueBefore: synced.dueBefore,
+            creditDaysPastDueBefore: synced.daysPastDueBefore,
+          };
+        }
       }
 
       return tx.expense.update({
@@ -259,9 +282,7 @@ export class ExpensesService {
             : {}),
           ...(dto.date !== undefined ? { date: new Date(dto.date) } : {}),
           ...(dto.creditId !== undefined ? { creditId: dto.creditId } : {}),
-          ...(creditTouched
-            ? { creditBalanceApplied, creditInstallmentAdvanced }
-            : {}),
+          ...(creditTouched ? { creditBalanceApplied, ...schedulePatch } : {}),
         },
         include: expenseInclude,
       });
@@ -291,7 +312,19 @@ export class ExpensesService {
         where: { userId, creditId: { not: null } },
       });
       for (const expense of linked) {
-        await this.restoreCredit(tx, userId, expense, true);
+        const fresh = await tx.expense.findFirst({
+          where: { id: expense.id, userId },
+        });
+        if (!fresh?.creditId) continue;
+        await this.restoreCredit(tx, userId, fresh, true);
+        await tx.expense.update({
+          where: { id: fresh.id },
+          data: {
+            creditDueBefore: null,
+            creditDaysPastDueBefore: null,
+            creditInstallmentAdvanced: false,
+          },
+        });
       }
       const result = await tx.expense.deleteMany({ where: { userId } });
       return { deleted: result.count };
@@ -304,7 +337,7 @@ export class ExpensesService {
     creditId: string,
     amount: number,
     options: { advanceInstallment: boolean; paidOn: Date },
-  ): Promise<{ applied: number; advanced: boolean }> {
+  ): Promise<CreditCharge> {
     const credit = await tx.credit.findFirst({
       where: { id: creditId, userId },
     });
@@ -312,39 +345,53 @@ export class ExpensesService {
 
     const balance = num(credit.remainingBalance) ?? 0;
     const charged = chargeBalance(balance, amount);
-    let advanced = false;
-    let installmentCurrent = credit.installmentCurrent;
-    if (
-      options.advanceInstallment &&
-      credit.kind === 'CONSUMO' &&
-      credit.installmentCurrent != null &&
-      (credit.installmentTotal == null ||
-        credit.installmentCurrent < credit.installmentTotal)
-    ) {
-      installmentCurrent = credit.installmentCurrent + 1;
-      advanced = true;
-    }
-
-    const paysUpcomingCuota =
-      advanced &&
-      credit.nextPaymentDate != null &&
-      isUpcomingCuota(options.paidOn, credit.nextPaymentDate);
+    const effect = applyCuotaPayment(
+      {
+        kind: credit.kind,
+        installmentCurrent: credit.installmentCurrent,
+        installmentTotal: credit.installmentTotal,
+        nextPaymentDate: credit.nextPaymentDate,
+        daysPastDue: credit.daysPastDue ?? 0,
+        paymentDay: credit.paymentDay ?? null,
+      },
+      options,
+    );
 
     await tx.credit.update({
       where: { id: credit.id },
       data: {
         remainingBalance: moneyDec(charged.remainingBalance)!,
-        ...(advanced ? { installmentCurrent } : {}),
-        ...(paysUpcomingCuota
-          ? {
-              nextPaymentDate: shiftUtcMonth(credit.nextPaymentDate!, 1),
-              daysPastDue: 0,
-            }
-          : {}),
+        installmentCurrent: effect.installmentCurrent,
+        nextPaymentDate: effect.nextPaymentDate,
+        daysPastDue: effect.daysPastDue,
+        paymentDay: effect.paymentDay,
       },
     });
 
-    return { applied: charged.applied, advanced };
+    return {
+      applied: charged.applied,
+      advanced: effect.advanced,
+      dueBefore: effect.dueBefore,
+      daysPastDueBefore: effect.daysPastDueBefore,
+    };
+  }
+
+  private async applyCreditBalance(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    creditId: string,
+    amount: number,
+  ): Promise<number> {
+    const credit = await tx.credit.findFirst({
+      where: { id: creditId, userId },
+    });
+    if (!credit) throw new NotFoundException('Crédito no encontrado');
+    const charged = chargeBalance(num(credit.remainingBalance) ?? 0, amount);
+    await tx.credit.update({
+      where: { id: credit.id },
+      data: { remainingBalance: moneyDec(charged.remainingBalance)! },
+    });
+    return charged.applied;
   }
 
   private async restoreCredit(
@@ -366,17 +413,62 @@ export class ExpensesService {
       )!,
     };
     if (revertInstallment && expense.creditInstallmentAdvanced) {
-      if (credit.installmentCurrent != null) {
-        data.installmentCurrent = Math.max(0, credit.installmentCurrent - 1);
-      }
-      if (credit.nextPaymentDate) {
-        const previousDue = shiftUtcMonth(credit.nextPaymentDate, -1);
-        if (isUpcomingCuota(expense.date, previousDue)) {
-          data.nextPaymentDate = previousDue;
-        }
+      const others = await this.storedShifts(tx, userId, expense);
+      const reverted = revertCuotaPayment(
+        {
+          installmentCurrent: credit.installmentCurrent,
+          nextPaymentDate: credit.nextPaymentDate,
+          daysPastDue: credit.daysPastDue,
+          paymentDay: credit.paymentDay,
+        },
+        {
+          advanced: true,
+          dueBefore: expense.creditDueBefore,
+          daysPastDueBefore: expense.creditDaysPastDueBefore,
+        },
+        others,
+      );
+      data.installmentCurrent = reverted.installmentCurrent;
+      data.nextPaymentDate = reverted.nextPaymentDate;
+      data.daysPastDue = reverted.daysPastDue;
+      if (reverted.rewritten) {
+        await tx.expense.update({
+          where: { id: reverted.rewritten.id },
+          data: {
+            creditDueBefore: reverted.rewritten.dueBefore,
+            creditDaysPastDueBefore: reverted.rewritten.daysPastDueBefore,
+          },
+        });
       }
     }
     await tx.credit.update({ where: { id: credit.id }, data });
+  }
+
+  private async storedShifts(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    expense: ExpenseRow,
+  ): Promise<CuotaShift[]> {
+    if (!expense.creditId) return [];
+    const rows = await tx.expense.findMany({
+      where: {
+        userId,
+        creditId: expense.creditId,
+        id: { not: expense.id },
+        creditDueBefore: { not: null },
+      },
+    });
+    return rows.flatMap((row) =>
+      row.creditDueBefore
+        ? [
+            {
+              id: row.id,
+              dueBefore: row.creditDueBefore,
+              daysPastDueBefore: row.creditDaysPastDueBefore ?? 0,
+            },
+          ]
+        : [],
+    );
   }
 
   private async syncCreditLink(
@@ -389,28 +481,45 @@ export class ExpensesService {
       advanceInstallment: boolean;
       paidOn: Date;
     },
-  ): Promise<{ applied: number; advanced: boolean }> {
+  ): Promise<CreditCharge & { preserveSchedule: boolean }> {
     const sameCredit = existing.creditId === next.creditId;
     if (existing.creditId) {
       await this.restoreCredit(tx, userId, existing, !sameCredit);
     }
-    if (!next.creditId) return { applied: 0, advanced: false };
+    if (!next.creditId) {
+      return {
+        applied: 0,
+        advanced: false,
+        dueBefore: null,
+        daysPastDueBefore: null,
+        preserveSchedule: false,
+      };
+    }
     if (sameCredit) {
-      const charged = await this.chargeCredit(
+      const applied = await this.applyCreditBalance(
         tx,
         userId,
         next.creditId,
         next.amount,
-        { advanceInstallment: false, paidOn: next.paidOn },
       );
       return {
-        applied: charged.applied,
+        applied,
         advanced: existing.creditInstallmentAdvanced,
+        dueBefore: existing.creditDueBefore,
+        daysPastDueBefore: existing.creditDaysPastDueBefore,
+        preserveSchedule: true,
       };
     }
-    return this.chargeCredit(tx, userId, next.creditId, next.amount, {
-      advanceInstallment: next.advanceInstallment,
-      paidOn: next.paidOn,
-    });
+    const charged = await this.chargeCredit(
+      tx,
+      userId,
+      next.creditId,
+      next.amount,
+      {
+        advanceInstallment: next.advanceInstallment,
+        paidOn: next.paidOn,
+      },
+    );
+    return { ...charged, preserveSchedule: false };
   }
 }

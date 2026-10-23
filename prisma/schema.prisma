@@ -93,6 +93,8 @@ model Expense {
   creditId                   String?
   creditBalanceApplied       Decimal                 @default(0) @db.Decimal(14, 2)
   creditInstallmentAdvanced  Boolean                 @default(false)
+  creditDueBefore            DateTime?
+  creditDaysPastDueBefore    Int?
 
   @@index([userId])
   @@index([categoryId])
@@ -128,6 +130,7 @@ model Credit {
   productRef               String?
   cutoffDate               DateTime?
   nextPaymentDate          DateTime?
+  paymentDay               Int?
   daysPastDue              Int            @default(0)
   remainingBalance         Decimal        @db.Decimal(14, 2)
   periodInterest           Decimal?       @db.Decimal(14, 2)

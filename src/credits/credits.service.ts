@@ -6,6 +6,7 @@ import {
 import { CreditKind, Prisma } from '@prisma/client';
 import { num } from './domain/money.js';
 import { projectFromRates } from './domain/projection.js';
+import { paymentDayOf } from './domain/schedule.js';
 import { resolveRates } from './domain/rates.js';
 import { MAX_CREDITS_PER_USER } from './constants.js';
 import type {
@@ -155,6 +156,7 @@ export class CreditsService {
         productRef: statement.productRef,
         cutoffDate: isoToDate(statement.cutoffDate),
         nextPaymentDate: isoToDate(statement.nextPaymentDate),
+        paymentDay: paymentDayOf(isoToDate(statement.nextPaymentDate)),
         daysPastDue: statement.daysPastDue,
         remainingBalance: moneyDec(statement.remainingBalance)!,
         periodInterest: moneyDec(statement.periodInterest),
@@ -341,7 +343,10 @@ export class CreditsService {
           ? { cutoffDate: isoToDate(dto.cutoffDate) }
           : {}),
         ...(dto.nextPaymentDate !== undefined
-          ? { nextPaymentDate: isoToDate(dto.nextPaymentDate) }
+          ? {
+              nextPaymentDate: isoToDate(dto.nextPaymentDate),
+              paymentDay: paymentDayOf(isoToDate(dto.nextPaymentDate)),
+            }
           : {}),
         ...(dto.daysPastDue !== undefined
           ? { daysPastDue: dto.daysPastDue }
@@ -456,6 +461,7 @@ export class CreditsService {
       productRef: dto.productRef?.trim() || null,
       cutoffDate: isoToDate(dto.cutoffDate),
       nextPaymentDate: isoToDate(dto.nextPaymentDate),
+      paymentDay: paymentDayOf(isoToDate(dto.nextPaymentDate)),
       daysPastDue: dto.daysPastDue ?? 0,
       remainingBalance: moneyDec(dto.remainingBalance)!,
       periodInterest: moneyDec(computed.periodInterest),
