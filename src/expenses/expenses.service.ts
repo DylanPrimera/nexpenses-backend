@@ -247,7 +247,7 @@ export class ExpensesService {
 
     const expense = await this.prisma.$transaction(async (tx) => {
       let creditBalanceApplied = existing.creditBalanceApplied;
-      let schedulePatch: Prisma.ExpenseUpdateInput = {};
+      let schedulePatch: Prisma.ExpenseUncheckedUpdateInput = {};
 
       if (creditTouched) {
         const synced = await this.syncCreditLink(tx, userId, existing, {
