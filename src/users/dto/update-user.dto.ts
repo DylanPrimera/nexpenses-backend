@@ -11,6 +11,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { CycleStartedAtProperty } from './cycle-started-at.property.js';
 
 const FIRST_NAME_MAX = 20;
 
@@ -61,4 +62,7 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(512)
   emailAppToken?: string | null;
+
+  @CycleStartedAtProperty()
+  cycleStartedAt?: string;
 }

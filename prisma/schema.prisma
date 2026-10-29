@@ -19,6 +19,7 @@ model User {
   firstName              String                  @default("")
   lastName               String                  @default("")
   budget                 Int                     @default(0)
+  cycleStartedAt         DateTime                @default(now())
   email                  String                  @unique
   password               String?
   emailAppToken          String?

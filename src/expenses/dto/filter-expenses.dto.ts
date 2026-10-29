@@ -48,7 +48,7 @@ export class FilterExpensesDto {
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by calendar year (UTC). Combine with month for a single month.',
+    description: 'Filter by calendar year (America/Bogota). Combine with month for a single month.',
     example: 2026,
   })
   @IsOptional()
@@ -60,7 +60,7 @@ export class FilterExpensesDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter by calendar month 1–12 (UTC). Requires year (defaults to current year if omitted when month is set).',
+      'Filter by calendar month 1–12 (America/Bogota). Requires year (defaults to current year if omitted when month is set).',
     example: 9,
     minimum: 1,
     maximum: 12,

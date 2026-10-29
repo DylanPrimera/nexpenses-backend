@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  getLocalDateParts,
+  getLocalDateRange,
   getLocalNowParts,
-  getUtcDateRange,
 } from '../common/utils/index.js';
 import { YearlyHistoryQueryDto } from './dto/yearly-history-query.dto.js';
 
@@ -17,7 +18,7 @@ export class HistoryService {
     const { year: currentYear } = getLocalNowParts();
     const year = query.year ?? currentYear;
     const budgetMonthly = user.budget;
-    const { start, end } = getUtcDateRange(year);
+    const { start, end } = getLocalDateRange(year);
 
     const expenses = await this.prisma.expense.findMany({
       where: {
@@ -34,7 +35,7 @@ export class HistoryService {
     }));
 
     for (const e of expenses) {
-      const m = e.date.getUTCMonth();
+      const m = getLocalDateParts(e.date).month - 1;
       buckets[m].spent += e.amount;
       buckets[m].expenseCount += 1;
     }

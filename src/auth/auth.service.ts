@@ -18,13 +18,14 @@ import type { JwtPayload } from './interfaces/jwt-payload.interface.js';
 
 const YEAR_SECONDS = 60 * 60 * 24 * 365;
 
-const publicUserSelect = {
+export const publicUserSelect = {
   id: true,
   name: true,
   firstName: true,
   lastName: true,
   email: true,
   budget: true,
+  cycleStartedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;

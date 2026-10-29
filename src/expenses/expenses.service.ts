@@ -11,7 +11,7 @@ import {
   type CuotaShift,
 } from '../credits/domain/schedule.js';
 import { moneyDec } from '../credits/serialize.js';
-import { getLocalNowParts, getUtcDateRange } from '../common/utils/index.js';
+import { getLocalNowParts, getLocalDateRange } from '../common/utils/index.js';
 import { PaginationDto } from '../common/dtos/pagination.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
@@ -156,7 +156,7 @@ export class ExpensesService {
     if (filters.year != null || filters.month != null) {
       const { year: currentYear } = getLocalNowParts();
       const year = filters.year ?? currentYear;
-      const { start, end } = getUtcDateRange(year, filters.month);
+      const { start, end } = getLocalDateRange(year, filters.month);
       where.date = { gte: start, lt: end };
     }
 

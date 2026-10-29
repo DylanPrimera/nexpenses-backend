@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { parseLocalDateOrInstant } from '../common/utils/index.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 
@@ -36,6 +37,12 @@ function normalizeOptionalToken(
   return trimmed.length === 0 ? null : trimmed;
 }
 
+function cycleStartData(value: string | undefined): { cycleStartedAt?: Date } {
+  return value === undefined
+    ? {}
+    : { cycleStartedAt: parseLocalDateOrInstant(value) };
+}
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -52,6 +59,7 @@ export class UsersService {
           email:
             email ?? `legacy+${crypto.randomUUID()}@users.nexpenses.invalid`,
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),
+          ...cycleStartData(dto.cycleStartedAt),
         },
       }));
     } catch (error) {
@@ -90,6 +98,7 @@ export class UsersService {
           ...(dto.budget !== undefined ? { budget: dto.budget } : {}),
           ...(typeof email === 'string' ? { email } : {}),
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),
+          ...cycleStartData(dto.cycleStartedAt),
         },
       }));
     } catch (error) {

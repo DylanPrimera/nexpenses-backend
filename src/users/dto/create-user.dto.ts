@@ -11,6 +11,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { CycleStartedAtProperty } from './cycle-started-at.property.js';
 
 /** Matches frontend budgetSetupSchema: first name, 1–20, no spaces. */
 const FIRST_NAME_MAX = 20;
@@ -62,4 +63,7 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(512)
   emailAppToken?: string | null;
+
+  @CycleStartedAtProperty()
+  cycleStartedAt?: string;
 }

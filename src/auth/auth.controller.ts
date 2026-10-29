@@ -7,7 +7,7 @@ import {
   SkipUserId,
 } from '../common/decorators/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, publicUserSelect } from './auth.service.js';
 import { GoogleDto } from './dto/google.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { MigrateDto } from './dto/migrate.dto.js';
@@ -73,16 +73,7 @@ export class AuthController {
   async me(@CurrentUserId() userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        budget: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: publicUserSelect,
     });
     if (!user) throw new UnauthorizedException('Token not valid');
     return this.authService.me(user);
