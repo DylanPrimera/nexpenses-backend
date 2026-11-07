@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -74,68 +75,111 @@ export class ExpensesService {
     };
   }
 
-  async create(userId: string, dto: CreateExpenseDto) {
-    await this.assertCategoryOwned(userId, dto.categoryId);
-    if (dto.saveAsRecurring && dto.creditId) {
-      throw new BadRequestException(
-        'A credit installment cannot be saved as a recurring payment',
+  private async findIdempotentExpense(userId: string, id: string) {
+    const existing = await this.prisma.expense.findUnique({
+      where: { id },
+      include: expenseInclude,
+    });
+    if (!existing) return null;
+    if (existing.userId !== userId)
+      throw new ConflictException(
+        'No se pudo registrar el gasto con ese identificador',
       );
+    return this.serialize(existing);
+  }
+
+  async create(userId: string, dto: CreateExpenseDto) {
+    if (dto.id) {
+      const existing = await this.findIdempotentExpense(userId, dto.id);
+      if (existing) return existing;
     }
+    try {
+      await this.assertCategoryOwned(userId, dto.categoryId);
+      if (dto.saveAsRecurring && dto.creditId) {
+        throw new BadRequestException(
+          'A credit installment cannot be saved as a recurring payment',
+        );
+      }
 
-    const expense = await this.prisma.$transaction(async (tx) => {
-      const paidOn = dto.date ? new Date(dto.date) : new Date();
-      const charge: CreditCharge = dto.creditId
-        ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
-            advanceInstallment: dto.advanceInstallment === true,
-            paidOn,
-          })
-        : {
-            applied: 0,
-            advanced: false,
-            dueBefore: null,
-            daysPastDueBefore: null,
-          };
+      const expense = await this.prisma.$transaction(async (tx) => {
+        if (dto.id) {
+          const existing = await tx.expense.findUnique({
+            where: { id: dto.id },
+            include: expenseInclude,
+          });
+          if (existing) {
+            if (existing.userId !== userId)
+              throw new ConflictException(
+                'No se pudo registrar el gasto con ese identificador',
+              );
+            return existing;
+          }
+        }
+        const paidOn = dto.date ? new Date(dto.date) : new Date();
+        const charge: CreditCharge = dto.creditId
+          ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
+              advanceInstallment: dto.advanceInstallment === true,
+              paidOn,
+            })
+          : {
+              applied: 0,
+              advanced: false,
+              dueBefore: null,
+              daysPastDueBefore: null,
+            };
 
-      const created = await tx.expense.create({
-        data: {
-          amount: dto.amount,
-          categoryId: dto.categoryId,
-          title: dto.title.trim(),
-          description: dto.description.trim(),
-          paymentType: dto.paymentType ?? PaymentType.debit_card,
-          date: paidOn,
-          userId,
-          creditId: dto.creditId ?? null,
-          creditBalanceApplied: moneyDec(charge.applied)!,
-          creditInstallmentAdvanced: charge.advanced,
-          creditDueBefore: charge.dueBefore,
-          creditDaysPastDueBefore: charge.daysPastDueBefore,
-        },
-        include: expenseInclude,
-      });
-
-      if (dto.saveAsRecurring) {
-        await tx.recurringExpense.create({
+        const created = await tx.expense.create({
           data: {
+            ...(dto.id ? { id: dto.id } : {}),
             amount: dto.amount,
             categoryId: dto.categoryId,
             title: dto.title.trim(),
             description: dto.description.trim(),
             paymentType: dto.paymentType ?? PaymentType.debit_card,
+            date: paidOn,
             userId,
+            creditId: dto.creditId ?? null,
+            creditBalanceApplied: moneyDec(charge.applied)!,
+            creditInstallmentAdvanced: charge.advanced,
+            creditDueBefore: charge.dueBefore,
+            creditDaysPastDueBefore: charge.daysPastDueBefore,
           },
+          include: expenseInclude,
         });
-      }
 
-      await tx.category.update({
-        where: { id: dto.categoryId },
-        data: { usageCount: { increment: 1 } },
+        if (dto.saveAsRecurring) {
+          await tx.recurringExpense.create({
+            data: {
+              amount: dto.amount,
+              categoryId: dto.categoryId,
+              title: dto.title.trim(),
+              description: dto.description.trim(),
+              paymentType: dto.paymentType ?? PaymentType.debit_card,
+              userId,
+            },
+          });
+        }
+
+        await tx.category.update({
+          where: { id: dto.categoryId },
+          data: { usageCount: { increment: 1 } },
+        });
+
+        return created;
       });
 
-      return created;
-    });
-
-    return this.serialize(expense);
+      return this.serialize(expense);
+    } catch (error) {
+      if (
+        dto.id &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await this.findIdempotentExpense(userId, dto.id);
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 
   async findAll(userId: string, filters: FilterExpensesDto) {

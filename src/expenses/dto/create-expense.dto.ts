@@ -15,6 +15,11 @@ import {
 import { PaymentType } from '@prisma/client';
 
 export class CreateExpenseDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  id?: string;
+
   @ApiProperty({ example: 25000, minimum: 1, maximum: 100_000_000 })
   @IsInt()
   @Min(1)
