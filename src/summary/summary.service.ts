@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   daysLeftInMonth,
+  getBusinessSupplement,
   getCycleProgress,
   getLocalDateRange,
   getLocalNowParts,
@@ -26,9 +27,11 @@ export class SummaryService {
 
     if (query.year == null && query.month == null) {
       const cycle = getCycleProgress(user.cycleStartedAt, now);
-      const totals = await this.aggregate(userId, {
-        gte: user.cycleStartedAt,
-      });
+      const [totals, businessSupplement] = await Promise.all([
+        this.aggregate(userId, { gte: user.cycleStartedAt }),
+        getBusinessSupplement(this.prisma, user),
+      ]);
+      const effectiveBudget = budgetMonthly + businessSupplement;
       return {
         userId,
         budget: budgetMonthly,
@@ -44,6 +47,11 @@ export class SummaryService {
         daysLeft: cycle.daysLeft,
         daysElapsed: cycle.daysElapsed,
         isCycleStale: cycle.isStale,
+        businessSupplement,
+        effectiveBudget,
+        effectiveRemaining: effectiveBudget - totals.spent,
+        effectivePercentage: percentageOf(totals.spent, effectiveBudget),
+        effectiveIsOverBudget: totals.spent > effectiveBudget,
       };
     }
 

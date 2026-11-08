@@ -14,6 +14,7 @@ import { HistoryModule } from './history/history.module.js';
 import { EmailInboundModule } from './email-inbound/email-inbound.module.js';
 import { CreditsModule } from './credits/credits.module.js';
 import { NexpensesAuthModule } from './auth/auth.module.js';
+import { BusinessModule } from './business/business.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { NexpensesAuthModule } from './auth/auth.module.js';
     HistoryModule,
     EmailInboundModule,
     CreditsModule,
+    BusinessModule,
   ],
   controllers: [AppController],
   providers: [

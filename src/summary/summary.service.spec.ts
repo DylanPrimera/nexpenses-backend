@@ -8,7 +8,11 @@ function matchesDate(date: Date, filter: { gte?: Date; lt?: Date }) {
   return (!filter.gte || date >= filter.gte) && (!filter.lt || date < filter.lt);
 }
 
-function prismaWith(user: { budget: number; cycleStartedAt: Date }, expenses: Expense[]) {
+function prismaWith(
+  user: { budget: number; cycleStartedAt: Date },
+  expenses: Expense[],
+  businessAdded: number | null = null,
+) {
   const select = (where: { date: { gte?: Date; lt?: Date } }) =>
     expenses.filter((e) => matchesDate(e.date, where.date));
   const group = (rows: Expense[], key: 'categoryId' | 'paymentType') => {
@@ -28,6 +32,7 @@ function prismaWith(user: { budget: number; cycleStartedAt: Date }, expenses: Ex
   return {
     user: { findUnique: async () => ({ id: 'user-1', ...user }) },
     category: { findMany: async () => [{ id: 'cat-1', name: 'comida', color: '#000' }] },
+    businessIncome: { aggregate: async () => ({ _sum: { amount: businessAdded } }) },
     expense: {
       aggregate: async ({ where }: any) => ({
         _sum: { amount: select(where).reduce((s, e) => s + e.amount, 0) },
@@ -47,6 +52,24 @@ describe('SummaryService current cycle', () => {
     { amount: 30_000, date: new Date('2026-11-01T01:30:00.000Z'), categoryId: 'cat-1', paymentType: 'CARD' },
     { amount: 20_000, date: new Date('2026-11-02T12:00:00.000Z'), categoryId: 'cat-1', paymentType: 'CARD' },
   ];
+
+  it('adds business fields without changing the base fields', async () => {
+    const service = new SummaryService(
+      prismaWith({ budget: 100_000, cycleStartedAt }, expenses, 80_000),
+    );
+    const summary = await service.getSummary('user-1', {}, now);
+    expect(summary).toMatchObject({
+      budget: 100_000,
+      remaining: -50_000,
+      percentage: 150,
+      isOverBudget: true,
+      businessSupplement: 80_000,
+      effectiveBudget: 180_000,
+      effectiveRemaining: 30_000,
+      effectivePercentage: 83,
+      effectiveIsOverBudget: false,
+    });
+  });
 
   it('defaults to the cycle since cycleStartedAt, crossing the month boundary', async () => {
     const service = new SummaryService(prismaWith({ budget: 1_000_000, cycleStartedAt }, expenses));
