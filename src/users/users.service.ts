@@ -110,12 +110,17 @@ export class UsersService {
       throw new BadRequestException('Email cannot be cleared');
     }
 
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+
     try {
       return await this.toPublicUser(await this.prisma.user.update({
         where: { id: userId },
         include: withBusiness,
         data: {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(firstName !== undefined ? { firstName, name: firstName } : {}),
+          ...(lastName !== undefined ? { lastName } : {}),
           ...(dto.budget !== undefined ? { budget: dto.budget } : {}),
           ...(typeof email === 'string' ? { email } : {}),
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),

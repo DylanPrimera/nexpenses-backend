@@ -11,9 +11,11 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Trim } from '../../business/dto/trim.js';
 import { CycleStartedAtProperty } from './cycle-started-at.property.js';
 
 const FIRST_NAME_MAX = 20;
+const LAST_NAME_MAX = 80;
 
 export class UpdateUserDto {
   @ApiPropertyOptional({
@@ -62,6 +64,32 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(512)
   emailAppToken?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Dylan',
+    minLength: 1,
+    maxLength: FIRST_NAME_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(FIRST_NAME_MAX)
+  @Matches(/^\S+$/, { message: 'firstName must not contain spaces' })
+  firstName?: string;
+
+  @ApiPropertyOptional({
+    example: 'Primera',
+    minLength: 1,
+    maxLength: LAST_NAME_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(LAST_NAME_MAX)
+  @Matches(/\S/, { message: 'lastName must not be blank' })
+  lastName?: string;
 
   @CycleStartedAtProperty()
   cycleStartedAt?: string;
