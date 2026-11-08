@@ -19,6 +19,10 @@ import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { FilterExpensesDto } from './dto/filter-expenses.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 
+export function optionalDescription(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
 const expenseInclude = {
   category: true,
   credit: { select: { id: true, displayName: true, kind: true } },
@@ -134,7 +138,7 @@ export class ExpensesService {
             amount: dto.amount,
             categoryId: dto.categoryId,
             title: dto.title.trim(),
-            description: dto.description.trim(),
+            description: optionalDescription(dto.description),
             paymentType: dto.paymentType ?? PaymentType.debit_card,
             date: paidOn,
             userId,
@@ -153,7 +157,7 @@ export class ExpensesService {
               amount: dto.amount,
               categoryId: dto.categoryId,
               title: dto.title.trim(),
-              description: dto.description.trim(),
+              description: optionalDescription(dto.description),
               paymentType: dto.paymentType ?? PaymentType.debit_card,
               userId,
             },
@@ -319,7 +323,7 @@ export class ExpensesService {
             : {}),
           ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
           ...(dto.description !== undefined
-            ? { description: dto.description.trim() }
+            ? { description: optionalDescription(dto.description) }
             : {}),
           ...(dto.paymentType !== undefined
             ? { paymentType: dto.paymentType }

@@ -84,7 +84,7 @@ model Expense {
   amount      Int
   categoryId  String
   title       String
-  description String
+  description String?
   paymentType PaymentType
   date        DateTime    @default(now())
   userId      String
@@ -112,7 +112,7 @@ model RecurringExpense {
   amount      Int
   categoryId  String
   title       String
-  description String
+  description String?
   paymentType PaymentType
   userId      String
   createdAt   DateTime    @default(now())

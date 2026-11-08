@@ -13,6 +13,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaymentType } from '@prisma/client';
+import { Trim } from '../../business/dto/trim.js';
 
 export class CreateExpenseDto {
   @ApiPropertyOptional({ format: 'uuid' })
@@ -36,11 +37,17 @@ export class CreateExpenseDto {
   @MaxLength(80)
   title: string;
 
-  @ApiProperty({ example: 'Bandeja paisa', minLength: 1, maxLength: 100 })
+  @ApiPropertyOptional({
+    example: 'Bandeja paisa',
+    maxLength: 100,
+    nullable: true,
+    description: 'Optional. Blank or null is stored as null.',
+  })
+  @IsOptional()
+  @Trim()
   @IsString()
-  @MinLength(1)
   @MaxLength(100)
-  description: string;
+  description?: string | null;
 
   @ApiPropertyOptional({
     enum: PaymentType,

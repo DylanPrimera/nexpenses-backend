@@ -14,6 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { PaymentType } from '@prisma/client';
+import { Trim } from '../../business/dto/trim.js';
 
 export class UpdateExpenseDto {
   @ApiPropertyOptional({ example: 30000, minimum: 1, maximum: 100_000_000 })
@@ -35,12 +36,16 @@ export class UpdateExpenseDto {
   @MaxLength(80)
   title?: string;
 
-  @ApiPropertyOptional({ maxLength: 100 })
+  @ApiPropertyOptional({
+    maxLength: 100,
+    nullable: true,
+    description: 'Omit to keep it. Blank or null clears it.',
+  })
   @IsOptional()
+  @Trim()
   @IsString()
-  @MinLength(1)
   @MaxLength(100)
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional({ enum: PaymentType })
   @IsOptional()
