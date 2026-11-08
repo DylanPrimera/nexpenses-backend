@@ -94,11 +94,18 @@ export class BusinessService {
               },
         });
       }
+      const expenses = await tx.businessExpense.deleteMany({
+        where: { businessId: business.id },
+      });
       const incomes = await tx.businessIncome.deleteMany({
         where: { businessId: business.id },
       });
       await tx.business.delete({ where: { id: business.id } });
-      return { deleted: true, counts: { incomes: incomes.count }, keptInPersonal };
+      return {
+        deleted: true,
+        counts: { incomes: incomes.count, expenses: expenses.count },
+        keptInPersonal,
+      };
     });
   }
 

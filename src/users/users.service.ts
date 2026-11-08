@@ -146,6 +146,9 @@ export class UsersService {
       const inbound = await tx.processedInboundEmail.deleteMany({
         where: { userId },
       });
+      const businessExpenses = await tx.businessExpense.deleteMany({
+        where: { business: { userId } },
+      });
       const businessIncomes = await tx.businessIncome.deleteMany({
         where: { business: { userId } },
       });
@@ -162,6 +165,7 @@ export class UsersService {
           categories: categories.count,
           processedInboundEmails: inbound.count,
           businessIncomes: businessIncomes.count,
+          businessExpenses: businessExpenses.count,
         },
       };
     });

@@ -54,8 +54,9 @@ export class BusinessController {
   @HttpCode(200)
   @ResponseMessage('Negocio eliminado')
   @ApiOperation({
-    summary: 'Delete the business and all its incomes',
-    description: 'Amounts already added to the current personal cycle are kept (keptInPersonal).',
+    summary: 'Delete the business and all its incomes and expenses',
+    description:
+      'Amounts already added to the current personal cycle are kept (keptInPersonal). Business expenses are deleted; their linked personal expenses stay in the personal history.',
   })
   remove(@CurrentUserId() userId: string) {
     return this.businessService.deleteBusiness(userId);
