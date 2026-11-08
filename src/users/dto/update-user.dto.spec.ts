@@ -29,3 +29,23 @@ describe('UpdateUserDto.cycleStartedAt', () => {
     expect(errorsFor(123)).toEqual(['cycleStartedAt']);
   });
 });
+
+describe('UpdateUserDto profile names', () => {
+  const props = (body: object) =>
+    validateSync(plainToInstance(UpdateUserDto, body)).map((e) => e.property);
+
+  it('accepts a single-word first name and a free last name', () => {
+    expect(props({ firstName: 'Dylan', lastName: 'Primera Gómez' })).toEqual([]);
+  });
+
+  it('rejects first names with spaces or too long', () => {
+    expect(props({ firstName: 'Dylan Jose' })).toEqual(['firstName']);
+    expect(props({ firstName: 'x'.repeat(21) })).toEqual(['firstName']);
+    expect(props({ firstName: '' })).toEqual(['firstName']);
+  });
+
+  it('rejects blank or too long last names', () => {
+    expect(props({ lastName: '   ' })).toEqual(['lastName']);
+    expect(props({ lastName: 'x'.repeat(81) })).toEqual(['lastName']);
+  });
+});

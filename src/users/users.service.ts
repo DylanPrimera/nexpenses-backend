@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { parseLocalDateOrInstant } from '../common/utils/index.js';
+import {
+  getBusinessSupplement,
+  parseLocalDateOrInstant,
+} from '../common/utils/index.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 
@@ -36,6 +39,12 @@ function normalizeOptionalToken(
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
 }
+
+const withBusiness = {
+  business: { select: { id: true, name: true } },
+} satisfies Prisma.UserInclude;
+
+type UserWithBusiness = Prisma.UserGetPayload<{ include: typeof withBusiness }>;
 
 function cycleStartData(value: string | undefined): { cycleStartedAt?: Date } {
   return value === undefined
@@ -69,9 +78,20 @@ export class UsersService {
   }
 
   async findMe(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: withBusiness,
+    });
     if (!user) throw new NotFoundException('User not found');
-    return withoutPassword(user);
+    return this.toPublicUser(user);
+  }
+
+  private async toPublicUser(user: UserWithBusiness) {
+    const businessBudgetSupplement = await getBusinessSupplement(
+      this.prisma,
+      user,
+    );
+    return { ...withoutPassword(user), businessBudgetSupplement };
   }
 
   async findOne(id: string, requesterId: string) {
@@ -90,11 +110,17 @@ export class UsersService {
       throw new BadRequestException('Email cannot be cleared');
     }
 
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+
     try {
-      return withoutPassword(await this.prisma.user.update({
+      return await this.toPublicUser(await this.prisma.user.update({
         where: { id: userId },
+        include: withBusiness,
         data: {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(firstName !== undefined ? { firstName, name: firstName } : {}),
+          ...(lastName !== undefined ? { lastName } : {}),
           ...(dto.budget !== undefined ? { budget: dto.budget } : {}),
           ...(typeof email === 'string' ? { email } : {}),
           ...(emailAppToken !== undefined ? { emailAppToken } : {}),
@@ -107,11 +133,6 @@ export class UsersService {
     }
   }
 
-  /**
-   * Full account wipe: delete all user-owned rows, then the User itself.
-   * Order matters because Expense and RecurringExpense → Category are onDelete: Restrict.
-   * User→children already have onDelete: Cascade; explicit deletes keep Restrict safe.
-   */
   async wipeMe(userId: string) {
     await this.findMe(userId);
 
@@ -125,6 +146,13 @@ export class UsersService {
       const inbound = await tx.processedInboundEmail.deleteMany({
         where: { userId },
       });
+      const businessExpenses = await tx.businessExpense.deleteMany({
+        where: { business: { userId } },
+      });
+      const businessIncomes = await tx.businessIncome.deleteMany({
+        where: { business: { userId } },
+      });
+      await tx.business.deleteMany({ where: { userId } });
       await tx.user.delete({ where: { id: userId } });
 
       return {
@@ -136,6 +164,8 @@ export class UsersService {
           credits: credits.count,
           categories: categories.count,
           processedInboundEmails: inbound.count,
+          businessIncomes: businessIncomes.count,
+          businessExpenses: businessExpenses.count,
         },
       };
     });
