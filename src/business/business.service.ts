@@ -1,13 +1,21 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BusinessPaymentMethod, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { BusinessIncome, User } from '@prisma/client';
 import { getBusinessSupplement } from '../common/utils/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  businessNotFound,
+  type Db,
+  emptyToNull,
+  isUniqueViolation,
+  requireBusiness,
+  requireUser,
+  resolveBankName,
+} from './business-access.js';
 import { parseCollectedOn, parseMonthRange, toDayKey } from './business-dates.js';
 import {
   BusinessIncomesQueryDto,
@@ -15,32 +23,11 @@ import {
   UpdateBusinessIncomeDto,
 } from './dto/index.js';
 
-type Db = PrismaService | Prisma.TransactionClient;
-
-function businessNotFound(): NotFoundException {
-  return new NotFoundException({
-    message: 'Aún no tienes un negocio',
-    code: 'BUSINESS_NOT_FOUND',
-  });
-}
-
 function incomeNotFound(): NotFoundException {
   return new NotFoundException({
     message: 'Ingreso no encontrado',
     code: 'INCOME_NOT_FOUND',
   });
-}
-
-function emptyToNull(value: string | null | undefined): string | null {
-  if (value === undefined || value === null) return null;
-  return value.length === 0 ? null : value;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2002'
-  );
 }
 
 @Injectable()
@@ -84,7 +71,7 @@ export class BusinessService {
       await tx.$queryRaw`SELECT id FROM "Business" WHERE "userId" = ${userId} FOR UPDATE`;
       const business = await tx.business.findUnique({ where: { userId } });
       if (!business) throw businessNotFound();
-      const user = await this.requireUser(tx, userId);
+      const user = await requireUser(tx, userId);
       const added = await tx.businessIncome.aggregate({
         where: {
           businessId: business.id,
@@ -119,8 +106,8 @@ export class BusinessService {
     const collectedOn = parseMonthRange(query.month);
     const limit = query.limit ?? 20;
     const offset = query.offset ?? 0;
-    const business = await this.requireBusiness(this.prisma, userId);
-    const user = await this.requireUser(this.prisma, userId);
+    const business = await requireBusiness(this.prisma, userId);
+    const user = await requireUser(this.prisma, userId);
     const where: Prisma.BusinessIncomeWhereInput = {
       businessId: business.id,
       collectedOn,
@@ -144,7 +131,7 @@ export class BusinessService {
 
   async getSummary(userId: string, month: string) {
     const collectedOn = parseMonthRange(month);
-    const business = await this.requireBusiness(this.prisma, userId);
+    const business = await requireBusiness(this.prisma, userId);
     const where = { businessId: business.id, collectedOn };
     const [collected, added] = await Promise.all([
       this.prisma.businessIncome.aggregate({ where, _sum: { amount: true } }),
@@ -164,9 +151,9 @@ export class BusinessService {
     const existing = await this.findIdempotentIncome(userId, dto.id);
     if (existing) return existing;
     const collectedOn = parseCollectedOn(dto.collectedOn);
-    const bankName = this.bankFor(dto.paymentMethod, dto.bankName);
-    const business = await this.requireBusiness(this.prisma, userId);
-    const user = await this.requireUser(this.prisma, userId);
+    const bankName = resolveBankName(dto.paymentMethod, dto.bankName);
+    const business = await requireBusiness(this.prisma, userId);
+    const user = await requireUser(this.prisma, userId);
     if (dto.addToPersonal) this.assertPersonalBudget(user);
     try {
       await this.prisma.businessIncome.create({
@@ -195,7 +182,7 @@ export class BusinessService {
 
   async updateIncome(userId: string, id: string, dto: UpdateBusinessIncomeDto) {
     const income = await this.requireIncome(userId, id);
-    const user = await this.requireUser(this.prisma, userId);
+    const user = await requireUser(this.prisma, userId);
     const data: Prisma.BusinessIncomeUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.description !== undefined) data.description = emptyToNull(dto.description);
@@ -220,7 +207,7 @@ export class BusinessService {
   async deleteIncome(userId: string, id: string) {
     await this.requireIncome(userId, id);
     await this.prisma.businessIncome.delete({ where: { id } });
-    const user = await this.requireUser(this.prisma, userId);
+    const user = await requireUser(this.prisma, userId);
     return { deleted: true, id, personal: await this.personalFor(this.prisma, user) };
   }
 
@@ -231,20 +218,6 @@ export class BusinessService {
     });
   }
 
-  private bankFor(
-    paymentMethod: BusinessPaymentMethod,
-    bankName: string | undefined,
-  ): string | null {
-    const value = emptyToNull(bankName);
-    if (value !== null && paymentMethod !== BusinessPaymentMethod.transfer) {
-      throw new BadRequestException({
-        message: 'El banco solo aplica a transferencias',
-        code: 'BANK_REQUIRES_TRANSFER',
-      });
-    }
-    return value;
-  }
-
   private assertPersonalBudget(user: User): void {
     if (user.budget <= 0) {
       throw new ConflictException({
@@ -252,18 +225,6 @@ export class BusinessService {
         code: 'PERSONAL_BUDGET_REQUIRED',
       });
     }
-  }
-
-  private async requireUser(db: Db, userId: string): Promise<User> {
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
-    return user;
-  }
-
-  private async requireBusiness(db: Db, userId: string) {
-    const business = await db.business.findUnique({ where: { userId } });
-    if (!business) throw businessNotFound();
-    return business;
   }
 
   private async requireIncome(userId: string, id: string) {
@@ -292,7 +253,7 @@ export class BusinessService {
   private async incomeResult(userId: string, id: string) {
     const [income, user] = await Promise.all([
       this.prisma.businessIncome.findUniqueOrThrow({ where: { id } }),
-      this.requireUser(this.prisma, userId),
+      requireUser(this.prisma, userId),
     ]);
     return {
       income: this.toIncomeView(income, user),

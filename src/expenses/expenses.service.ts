@@ -28,6 +28,8 @@ const expenseInclude = {
   credit: { select: { id: true, displayName: true, kind: true } },
 } satisfies Prisma.ExpenseInclude;
 
+type Db = PrismaService | Prisma.TransactionClient;
+
 type ExpenseRow = {
   id: string;
   creditBalanceApplied: unknown;
@@ -51,8 +53,12 @@ type CreditCharge = {
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async assertCategoryOwned(userId: string, categoryId: string) {
-    const category = await this.prisma.category.findFirst({
+  private async assertCategoryOwned(
+    db: Db,
+    userId: string,
+    categoryId: string,
+  ) {
+    const category = await db.category.findFirst({
       where: { id: categoryId, userId },
     });
     if (!category) {
@@ -98,81 +104,9 @@ export class ExpensesService {
       if (existing) return existing;
     }
     try {
-      await this.assertCategoryOwned(userId, dto.categoryId);
-      if (dto.saveAsRecurring && dto.creditId) {
-        throw new BadRequestException(
-          'A credit installment cannot be saved as a recurring payment',
-        );
-      }
-
-      const expense = await this.prisma.$transaction(async (tx) => {
-        if (dto.id) {
-          const existing = await tx.expense.findUnique({
-            where: { id: dto.id },
-            include: expenseInclude,
-          });
-          if (existing) {
-            if (existing.userId !== userId)
-              throw new ConflictException(
-                'No se pudo registrar el gasto con ese identificador',
-              );
-            return existing;
-          }
-        }
-        const paidOn = dto.date ? new Date(dto.date) : new Date();
-        const charge: CreditCharge = dto.creditId
-          ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
-              advanceInstallment: dto.advanceInstallment === true,
-              paidOn,
-            })
-          : {
-              applied: 0,
-              advanced: false,
-              dueBefore: null,
-              daysPastDueBefore: null,
-            };
-
-        const created = await tx.expense.create({
-          data: {
-            ...(dto.id ? { id: dto.id } : {}),
-            amount: dto.amount,
-            categoryId: dto.categoryId,
-            title: dto.title.trim(),
-            description: optionalDescription(dto.description),
-            paymentType: dto.paymentType ?? PaymentType.debit_card,
-            date: paidOn,
-            userId,
-            creditId: dto.creditId ?? null,
-            creditBalanceApplied: moneyDec(charge.applied)!,
-            creditInstallmentAdvanced: charge.advanced,
-            creditDueBefore: charge.dueBefore,
-            creditDaysPastDueBefore: charge.daysPastDueBefore,
-          },
-          include: expenseInclude,
-        });
-
-        if (dto.saveAsRecurring) {
-          await tx.recurringExpense.create({
-            data: {
-              amount: dto.amount,
-              categoryId: dto.categoryId,
-              title: dto.title.trim(),
-              description: optionalDescription(dto.description),
-              paymentType: dto.paymentType ?? PaymentType.debit_card,
-              userId,
-            },
-          });
-        }
-
-        await tx.category.update({
-          where: { id: dto.categoryId },
-          data: { usageCount: { increment: 1 } },
-        });
-
-        return created;
-      });
-
-      return this.serialize(expense);
+      return await this.prisma.$transaction((tx) =>
+        this.createWithin(tx, userId, dto),
+      );
     } catch (error) {
       if (
         dto.id &&
@@ -184,6 +118,83 @@ export class ExpensesService {
       }
       throw error;
     }
+  }
+
+  async createWithin(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    dto: CreateExpenseDto,
+  ) {
+    await this.assertCategoryOwned(tx, userId, dto.categoryId);
+    if (dto.saveAsRecurring && dto.creditId) {
+      throw new BadRequestException(
+        'A credit installment cannot be saved as a recurring payment',
+      );
+    }
+    if (dto.id) {
+      const existing = await tx.expense.findUnique({
+        where: { id: dto.id },
+        include: expenseInclude,
+      });
+      if (existing) {
+        if (existing.userId !== userId)
+          throw new ConflictException(
+            'No se pudo registrar el gasto con ese identificador',
+          );
+        return this.serialize(existing);
+      }
+    }
+    const paidOn = dto.date ? new Date(dto.date) : new Date();
+    const charge: CreditCharge = dto.creditId
+      ? await this.chargeCredit(tx, userId, dto.creditId, dto.amount, {
+          advanceInstallment: dto.advanceInstallment === true,
+          paidOn,
+        })
+      : {
+          applied: 0,
+          advanced: false,
+          dueBefore: null,
+          daysPastDueBefore: null,
+        };
+
+    const created = await tx.expense.create({
+      data: {
+        ...(dto.id ? { id: dto.id } : {}),
+        amount: dto.amount,
+        categoryId: dto.categoryId,
+        title: dto.title.trim(),
+        description: optionalDescription(dto.description),
+        paymentType: dto.paymentType ?? PaymentType.debit_card,
+        date: paidOn,
+        userId,
+        creditId: dto.creditId ?? null,
+        creditBalanceApplied: moneyDec(charge.applied)!,
+        creditInstallmentAdvanced: charge.advanced,
+        creditDueBefore: charge.dueBefore,
+        creditDaysPastDueBefore: charge.daysPastDueBefore,
+      },
+      include: expenseInclude,
+    });
+
+    if (dto.saveAsRecurring) {
+      await tx.recurringExpense.create({
+        data: {
+          amount: dto.amount,
+          categoryId: dto.categoryId,
+          title: dto.title.trim(),
+          description: optionalDescription(dto.description),
+          paymentType: dto.paymentType ?? PaymentType.debit_card,
+          userId,
+        },
+      });
+    }
+
+    await tx.category.update({
+      where: { id: dto.categoryId },
+      data: { usageCount: { increment: 1 } },
+    });
+
+    return this.serialize(created);
   }
 
   async findAll(userId: string, filters: FilterExpensesDto) {
@@ -277,12 +288,23 @@ export class ExpensesService {
   }
 
   async update(userId: string, id: string, dto: UpdateExpenseDto) {
-    const existing = await this.prisma.expense.findFirst({
+    return this.prisma.$transaction((tx) =>
+      this.updateWithin(tx, userId, id, dto),
+    );
+  }
+
+  async updateWithin(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    id: string,
+    dto: UpdateExpenseDto,
+  ) {
+    const existing = await tx.expense.findFirst({
       where: { id, userId },
     });
     if (!existing) throw new NotFoundException('Expense not found');
     if (dto.categoryId) {
-      await this.assertCategoryOwned(userId, dto.categoryId);
+      await this.assertCategoryOwned(tx, userId, dto.categoryId);
     }
 
     const nextAmount = dto.amount ?? existing.amount;
@@ -293,65 +315,66 @@ export class ExpensesService {
       (nextCreditId != null && nextAmount !== existing.amount) ||
       (existing.creditId != null && nextAmount !== existing.amount);
 
-    const expense = await this.prisma.$transaction(async (tx) => {
-      let creditBalanceApplied = existing.creditBalanceApplied;
-      let schedulePatch: Prisma.ExpenseUncheckedUpdateInput = {};
+    let creditBalanceApplied = existing.creditBalanceApplied;
+    let schedulePatch: Prisma.ExpenseUncheckedUpdateInput = {};
 
-      if (creditTouched) {
-        const synced = await this.syncCreditLink(tx, userId, existing, {
-          creditId: nextCreditId,
-          amount: nextAmount,
-          advanceInstallment: dto.advanceInstallment === true,
-          paidOn: dto.date ? new Date(dto.date) : existing.date,
-        });
-        creditBalanceApplied = moneyDec(synced.applied)!;
-        if (!synced.preserveSchedule) {
-          schedulePatch = {
-            creditInstallmentAdvanced: synced.advanced,
-            creditDueBefore: synced.dueBefore,
-            creditDaysPastDueBefore: synced.daysPastDueBefore,
-          };
-        }
-      }
-
-      return tx.expense.update({
-        where: { id },
-        data: {
-          ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
-          ...(dto.categoryId !== undefined
-            ? { categoryId: dto.categoryId }
-            : {}),
-          ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
-          ...(dto.description !== undefined
-            ? { description: optionalDescription(dto.description) }
-            : {}),
-          ...(dto.paymentType !== undefined
-            ? { paymentType: dto.paymentType }
-            : {}),
-          ...(dto.date !== undefined ? { date: new Date(dto.date) } : {}),
-          ...(dto.creditId !== undefined ? { creditId: dto.creditId } : {}),
-          ...(creditTouched ? { creditBalanceApplied, ...schedulePatch } : {}),
-        },
-        include: expenseInclude,
+    if (creditTouched) {
+      const synced = await this.syncCreditLink(tx, userId, existing, {
+        creditId: nextCreditId,
+        amount: nextAmount,
+        advanceInstallment: dto.advanceInstallment === true,
+        paidOn: dto.date ? new Date(dto.date) : existing.date,
       });
+      creditBalanceApplied = moneyDec(synced.applied)!;
+      if (!synced.preserveSchedule) {
+        schedulePatch = {
+          creditInstallmentAdvanced: synced.advanced,
+          creditDueBefore: synced.dueBefore,
+          creditDaysPastDueBefore: synced.daysPastDueBefore,
+        };
+      }
+    }
+
+    const expense = await tx.expense.update({
+      where: { id },
+      data: {
+        ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
+        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.description !== undefined
+          ? { description: optionalDescription(dto.description) }
+          : {}),
+        ...(dto.paymentType !== undefined
+          ? { paymentType: dto.paymentType }
+          : {}),
+        ...(dto.date !== undefined ? { date: new Date(dto.date) } : {}),
+        ...(dto.creditId !== undefined ? { creditId: dto.creditId } : {}),
+        ...(creditTouched ? { creditBalanceApplied, ...schedulePatch } : {}),
+      },
+      include: expenseInclude,
     });
 
     return this.serialize(expense);
   }
 
   async remove(userId: string, id: string) {
-    const existing = await this.prisma.expense.findFirst({
+    await this.prisma.$transaction((tx) => this.removeWithin(tx, userId, id));
+    return { deleted: true, id };
+  }
+
+  async removeWithin(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    id: string,
+  ): Promise<void> {
+    const existing = await tx.expense.findFirst({
       where: { id, userId },
     });
     if (!existing) throw new NotFoundException('Expense not found');
-
-    await this.prisma.$transaction(async (tx) => {
-      if (existing.creditId) {
-        await this.restoreCredit(tx, userId, existing, true);
-      }
-      await tx.expense.delete({ where: { id } });
-    });
-    return { deleted: true, id };
+    if (existing.creditId) {
+      await this.restoreCredit(tx, userId, existing, true);
+    }
+    await tx.expense.delete({ where: { id } });
   }
 
   async wipeAll(userId: string) {
